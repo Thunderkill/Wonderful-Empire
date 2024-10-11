@@ -285,6 +285,11 @@ namespace ItsAWonderfulWorldAPI.Services
                 GameState = game.State,
                 CurrentPhase = game.CurrentPhase,
                 CurrentRound = game.CurrentRound,
+                Host = new PlayerStatus
+                {
+                    Id = game.Host.Id,
+                    Name = game.Host.Name
+                },
                 CurrentPlayer = new PlayerStatus
                 {
                     Id = currentPlayer.Id,
@@ -568,6 +573,7 @@ namespace ItsAWonderfulWorldAPI.Services
         public GameState GameState { get; set; }
         public GamePhase CurrentPhase { get; set; }
         public int CurrentRound { get; set; }
+        public PlayerStatus Host { get; set; }
         public PlayerStatus CurrentPlayer { get; set; }
         public List<PlayerStatus> OtherPlayers { get; set; }
     }

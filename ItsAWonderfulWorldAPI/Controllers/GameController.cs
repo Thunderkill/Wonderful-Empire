@@ -35,7 +35,8 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 CurrentPhase = g.CurrentPhase,
                 State = g.State,
                 MaxPlayers = g.MaxPlayers,
-                HasCurrentUserJoined = g.HasCurrentUserJoined(currentUserId)
+                HasCurrentUserJoined = g.HasCurrentUserJoined(currentUserId),
+                HostName = g.Host.Name
             });
 
             return Ok(gameSummaries);
@@ -224,7 +225,6 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 {
                     Success = true,
                     ActionType = PlanActionType.Discard,
-                    CardName = action.CardName,
                     RecyclingBonus = recyclingBonus,
                     UpdatedResources = player.Resources,
                     RemainingConstructionAreaCards = player.ConstructionArea.Count
@@ -330,7 +330,6 @@ namespace ItsAWonderfulWorldAPI.Controllers
     {
         public Guid PlayerId { get; set; }
         public Guid CardId { get; set; }
-        public string CardName { get; set; }
     }
 
     public class GameSummary
@@ -342,6 +341,7 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public GameState State { get; set; }
         public int MaxPlayers { get; set; }
         public bool HasCurrentUserJoined { get; set; }
+        public string HostName { get; set; }
     }
 
     public class DraftResult
