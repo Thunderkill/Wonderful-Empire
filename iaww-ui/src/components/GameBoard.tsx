@@ -22,6 +22,7 @@ interface PlayerStatus {
   constructionArea: Card[];
   empire: Card[];
   isReady: boolean;
+  hasDraftedThisRound: boolean;
 }
 
 interface GameStatus {
@@ -67,12 +68,24 @@ const GameBoard: React.FC = () => {
   };
 
   const handleDraft = async (cardId: string) => {
+    if (!game || game.currentPlayer.hasDraftedThisRound) return;
+
     try {
       const response = await api.post(`/api/Game/${gameId}/draft`, {
-        playerId: game?.currentPlayer.id,
+        playerId: game.currentPlayer.id,
         cardId
       });
       if (response.data.success) {
+        setGame(prevGame => {
+          if (!prevGame) return null;
+          return {
+            ...prevGame,
+            currentPlayer: {
+              ...prevGame.currentPlayer,
+              hasDraftedThisRound: true
+            }
+          };
+        });
         fetchGameStatus();
       } else {
         setError('Failed to draft card. Please try again.');
@@ -215,13 +228,18 @@ const GameBoard: React.FC = () => {
           <h3>Your Hand</h3>
           <div className="hand">
             {game.currentPlayer.hand.map((card) => (
-              <div key={card.id} className="card" onClick={() => handleDraft(card.id)}>
+              <div 
+                key={card.id} 
+                className={`card ${game.currentPlayer.hasDraftedThisRound ? 'disabled' : ''}`} 
+                onClick={() => !game.currentPlayer.hasDraftedThisRound && handleDraft(card.id)}
+              >
                 <h4>{card.name}</h4>
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
               </div>
             ))}
           </div>
+          {game.currentPlayer.hasDraftedThisRound && <p>You have drafted a card this round. Waiting for other players...</p>}
         </div>
       )}
       
@@ -260,6 +278,7 @@ const GameBoard: React.FC = () => {
             <p>Construction Area Count: {player.constructionArea.length}</p>
             <p>Empire Count: {player.empire.length}</p>
             <p>Ready: {player.isReady ? "Yes" : "No"}</p>
+            <p>Has Drafted: {player.hasDraftedThisRound ? "Yes" : "No"}</p>
           </div>
         ))}
       </div>

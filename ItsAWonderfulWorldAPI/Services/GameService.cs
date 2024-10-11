@@ -114,7 +114,7 @@ namespace ItsAWonderfulWorldAPI.Services
             var player = game.Players.FirstOrDefault(p => p.Id == playerId) 
                 ?? throw new ArgumentException("Player not found.", nameof(playerId));
 
-            if (game.PlayersDrafted.Contains(playerId))
+            if (player.HasDraftedThisRound)
                 throw new InvalidOperationException("Player has already drafted this round.");
 
             var card = player.Hand.FirstOrDefault(c => c.Id == cardId)
@@ -124,6 +124,7 @@ namespace ItsAWonderfulWorldAPI.Services
 
             player.Hand.Remove(card);
             player.ConstructionArea.Add(card);
+            player.HasDraftedThisRound = true;
 
             game.PlayersDrafted.Add(playerId);
 
@@ -327,7 +328,8 @@ namespace ItsAWonderfulWorldAPI.Services
                     Hand = currentPlayer.Hand,
                     ConstructionArea = currentPlayer.ConstructionArea,
                     Empire = currentPlayer.Empire,
-                    IsReady = currentPlayer.IsReady
+                    IsReady = currentPlayer.IsReady,
+                    HasDraftedThisRound = currentPlayer.HasDraftedThisRound
                 },
                 OtherPlayers = otherPlayers.Select(p => new PlayerStatus
                 {
@@ -337,7 +339,8 @@ namespace ItsAWonderfulWorldAPI.Services
                     HandCount = p.Hand.Count,
                     ConstructionArea = p.ConstructionArea,
                     Empire = p.Empire,
-                    IsReady = p.IsReady
+                    IsReady = p.IsReady,
+                    HasDraftedThisRound = p.HasDraftedThisRound
                 }).ToList()
             };
 
@@ -567,6 +570,7 @@ namespace ItsAWonderfulWorldAPI.Services
             foreach (var player in game.Players)
             {
                 player.Hand.Clear();
+                player.HasDraftedThisRound = false; // Reset the drafting status
                 int cardsToDraw = 7 + player.Empire.Count(c => c.SpecialAbility == SpecialAbility.ExtraCardDraw);
                 for (int i = 0; i < cardsToDraw; i++)
                 {
@@ -592,6 +596,7 @@ namespace ItsAWonderfulWorldAPI.Services
                     : (i - 1 + game.Players.Count) % game.Players.Count;
 
                 game.Players[nextIndex].Hand = hands[i];
+                game.Players[nextIndex].HasDraftedThisRound = false; // Reset the drafting status
             }
 
             _logger.LogInformation($"Cards passed successfully in game {game.Id}");
@@ -619,6 +624,7 @@ namespace ItsAWonderfulWorldAPI.Services
         public List<Card> ConstructionArea { get; set; }
         public List<Card> Empire { get; set; }
         public bool IsReady { get; set; }
+        public bool HasDraftedThisRound { get; set; }
     }
 
     public static class CardExtensions

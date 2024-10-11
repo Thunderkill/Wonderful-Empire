@@ -11,7 +11,8 @@ namespace ItsAWonderfulWorldAPI.Models
         public List<Card> ConstructionArea { get; set; }
         public List<Card> Empire { get; set; }
         public Dictionary<ResourceType, int> Resources { get; set; }
-        public bool IsReady { get; set; }  // New property for ready state
+        public bool IsReady { get; set; }
+        public bool HasDraftedThisRound { get; set; }  // New property to track drafting status
 
         public Player(string name)
         {
@@ -25,7 +26,8 @@ namespace ItsAWonderfulWorldAPI.Models
             {
                 Resources[resourceType] = 0;
             }
-            IsReady = false;  // Initialize IsReady to false
+            IsReady = false;
+            HasDraftedThisRound = false;  // Initialize HasDraftedThisRound to false
         }
     }
 }

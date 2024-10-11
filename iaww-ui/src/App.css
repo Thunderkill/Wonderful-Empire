@@ -1,11 +1,36 @@
-.app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: Arial, sans-serif;
+/* Existing styles */
+
+.card {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.app-title {
-  color: #333;
-  text-align: center;
+.card:hover {
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
+
+.card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.card.disabled:hover {
+  box-shadow: none;
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.error-message {
+  color: red;
+  font-weight: bold;
+}
+
+/* Add any other existing styles here */
