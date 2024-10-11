@@ -17,6 +17,7 @@ namespace ItsAWonderfulWorldAPI.Models
         public bool ShouldPassHands { get; set; }
         public DraftDirection CurrentDraftDirection { get; set; }
         public int MaxPlayers { get; set; }
+        public Guid? WinnerId { get; set; }
 
         // New property to indicate if the current user has joined
         public bool HasCurrentUserJoined(Guid? currentUserId)
@@ -42,6 +43,7 @@ namespace ItsAWonderfulWorldAPI.Models
             ShouldPassHands = false;
             CurrentDraftDirection = DraftDirection.Clockwise;
             MaxPlayers = 5; // Default max players, can be changed
+            WinnerId = null;
         }
     }
 

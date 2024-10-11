@@ -11,8 +11,9 @@ namespace ItsAWonderfulWorldAPI.Models
         public List<Card> ConstructionArea { get; set; }
         public List<Card> Empire { get; set; }
         public Dictionary<ResourceType, int> Resources { get; set; }
+        public Dictionary<CharacterType, int> Characters { get; set; }
         public bool IsReady { get; set; }
-        public bool HasDraftedThisRound { get; set; }  // New property to track drafting status
+        public bool HasDraftedThisRound { get; set; }
 
         public Player(string name)
         {
@@ -22,12 +23,17 @@ namespace ItsAWonderfulWorldAPI.Models
             ConstructionArea = new List<Card>();
             Empire = new List<Card>();
             Resources = new Dictionary<ResourceType, int>();
+            Characters = new Dictionary<CharacterType, int>();
             foreach (ResourceType resourceType in Enum.GetValues(typeof(ResourceType)))
             {
                 Resources[resourceType] = 0;
             }
+            foreach (CharacterType characterType in Enum.GetValues(typeof(CharacterType)))
+            {
+                Characters[characterType] = 0;
+            }
             IsReady = false;
-            HasDraftedThisRound = false;  // Initialize HasDraftedThisRound to false
+            HasDraftedThisRound = false;
         }
     }
 }

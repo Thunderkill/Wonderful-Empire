@@ -288,13 +288,16 @@ namespace ItsAWonderfulWorldAPI.Services
             foreach (var player in game.Players)
             {
                 int score = 0;
-                score += player.Empire.Sum(card => card.VictoryPoints);
-                score += player.Resources.Values.Sum() / 3;
-                score += CalculateSpecialScoringPoints(player);
+                score += CalculateGrossVictoryPoints(player);
+                score += CalculateComboVictoryPoints(player);
+                score += CalculateGeneralsVictoryPoints(player);
+                score += CalculateFinanciersVictoryPoints(player);
                 scores[player.Id] = score;
 
                 _logger.LogInformation($"Final score for player {player.Name} (ID: {player.Id}): {score}");
             }
+
+            DetermineWinner(game, scores);
 
             return scores;
         }
@@ -325,6 +328,7 @@ namespace ItsAWonderfulWorldAPI.Services
                     Id = currentPlayer.Id,
                     Name = currentPlayer.Name,
                     Resources = currentPlayer.Resources,
+                    Characters = currentPlayer.Characters,
                     Hand = currentPlayer.Hand,
                     ConstructionArea = currentPlayer.ConstructionArea,
                     Empire = currentPlayer.Empire,
@@ -336,6 +340,7 @@ namespace ItsAWonderfulWorldAPI.Services
                     Id = p.Id,
                     Name = p.Name,
                     Resources = p.Resources,
+                    Characters = p.Characters,
                     HandCount = p.Hand.Count,
                     ConstructionArea = p.ConstructionArea,
                     Empire = p.Empire,
@@ -457,6 +462,7 @@ namespace ItsAWonderfulWorldAPI.Services
                 game.CurrentPhase = GamePhase.GameOver;
                 game.State = GameState.Finished;
                 _logger.LogInformation($"Game {game.Id} is over after 4 rounds");
+                CalculateFinalScores(game);
             }
             else
             {
@@ -466,27 +472,76 @@ namespace ItsAWonderfulWorldAPI.Services
             }
         }
 
-        private int CalculateSpecialScoringPoints(Player player)
+        private int CalculateGrossVictoryPoints(Player player)
         {
-            int specialPoints = 0;
+            return player.Empire.Sum(card => card.VictoryPoints);
+        }
 
+        private int CalculateComboVictoryPoints(Player player)
+        {
             var cardTypeCounts = player.Empire.GroupBy(card => card.Type).ToDictionary(g => g.Key, g => g.Count());
-            specialPoints += cardTypeCounts.Values.Sum(count => count / 2);
+            return player.Empire.Sum(card => card.ComboVictoryPoints * (cardTypeCounts[card.Type] - 1));
+        }
 
-            specialPoints += cardTypeCounts.Count / 3;
+        private int CalculateGeneralsVictoryPoints(Player player)
+        {
+            int basePoints = player.Characters[CharacterType.General];
+            int bonusPoints = player.Empire.Sum(card => card.GeneralVictoryPointsBonus);
+            return basePoints + bonusPoints;
+        }
 
-            int setCount = player.Resources.Values.Min();
-            specialPoints += setCount * 2;
+        private int CalculateFinanciersVictoryPoints(Player player)
+        {
+            int basePoints = player.Characters[CharacterType.Financier];
+            int bonusPoints = player.Empire.Sum(card => card.FinancierVictoryPointsBonus);
+            return basePoints + bonusPoints;
+        }
 
-            specialPoints += player.Resources[ResourceType.Krystallium] / 2;
+        private void DetermineWinner(Game game, Dictionary<Guid, int> scores)
+        {
+            var maxScore = scores.Max(s => s.Value);
+            var winners = scores.Where(s => s.Value == maxScore).Select(s => s.Key).ToList();
 
-            if (cardTypeCounts.Count == Enum.GetValues(typeof(CardType)).Length)
+            if (winners.Count == 1)
             {
-                specialPoints += 3;
+                game.WinnerId = winners[0];
+                _logger.LogInformation($"Player {game.Players.First(p => p.Id == game.WinnerId).Name} (ID: {game.WinnerId}) wins the game {game.Id}");
             }
+            else
+            {
+                // Tiebreaker: Most cards in Empire
+                var mostCards = winners.Max(w => game.Players.First(p => p.Id == w).Empire.Count);
+                winners = winners.Where(w => game.Players.First(p => p.Id == w).Empire.Count == mostCards).ToList();
 
-            _logger.LogInformation($"Special scoring points for player {player.Name} (ID: {player.Id}): {specialPoints}");
-            return specialPoints;
+                if (winners.Count == 1)
+                {
+                    game.WinnerId = winners[0];
+                    _logger.LogInformation($"Player {game.Players.First(p => p.Id == game.WinnerId).Name} (ID: {game.WinnerId}) wins the game {game.Id} after first tiebreaker");
+                }
+                else
+                {
+                    // Second tiebreaker: Most Character tokens
+                    var mostTokens = winners.Max(w => {
+                        var player = game.Players.First(p => p.Id == w);
+                        return player.Characters[CharacterType.General] + player.Characters[CharacterType.Financier];
+                    });
+                    winners = winners.Where(w => {
+                        var player = game.Players.First(p => p.Id == w);
+                        return player.Characters[CharacterType.General] + player.Characters[CharacterType.Financier] == mostTokens;
+                    }).ToList();
+
+                    if (winners.Count == 1)
+                    {
+                        game.WinnerId = winners[0];
+                        _logger.LogInformation($"Player {game.Players.First(p => p.Id == game.WinnerId).Name} (ID: {game.WinnerId}) wins the game {game.Id} after second tiebreaker");
+                    }
+                    else
+                    {
+                        game.WinnerId = null;
+                        _logger.LogInformation($"Game {game.Id} ends in a tie between players: {string.Join(", ", winners)}");
+                    }
+                }
+            }
         }
 
         private void ApplySpecialAbility(Player player, Card card)
@@ -534,6 +589,9 @@ namespace ItsAWonderfulWorldAPI.Services
             card.Production = GenerateRandomResources(1, 2);
             card.RecyclingBonus = GenerateRandomResources(1, 1);
             card.VictoryPoints = _random.Next(1, 6);
+            card.ComboVictoryPoints = _random.Next(0, 3);
+            card.GeneralVictoryPointsBonus = _random.Next(0, 2);
+            card.FinancierVictoryPointsBonus = _random.Next(0, 2);
 
             if (_random.Next(100) < 20)
             {
@@ -554,7 +612,7 @@ namespace ItsAWonderfulWorldAPI.Services
 
             for (int i = 0; i < resourceCount; i++)
             {
-                ResourceType resourceType = (ResourceType)_random.Next(0, 6);
+                ResourceType resourceType = (ResourceType)_random.Next(0, Enum.GetValues(typeof(ResourceType)).Length);
                 if (!resources.ContainsKey(resourceType))
                 {
                     resources[resourceType] = 0;
@@ -619,6 +677,7 @@ namespace ItsAWonderfulWorldAPI.Services
         public Guid Id { get; set; }
         public string Name { get; set; }
         public Dictionary<ResourceType, int> Resources { get; set; }
+        public Dictionary<CharacterType, int> Characters { get; set; }
         public List<Card> Hand { get; set; }
         public int HandCount { get; set; }
         public List<Card> ConstructionArea { get; set; }
