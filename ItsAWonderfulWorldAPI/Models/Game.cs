@@ -24,6 +24,12 @@ namespace ItsAWonderfulWorldAPI.Models
             return currentUserId.HasValue && Players.Any(p => p.Id == currentUserId.Value);
         }
 
+        // New method to check if all players are ready
+        public bool AreAllPlayersReady()
+        {
+            return Players.All(p => p.IsReady);
+        }
+
         public Game()
         {
             Id = Guid.NewGuid();

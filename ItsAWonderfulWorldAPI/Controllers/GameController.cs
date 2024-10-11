@@ -300,6 +300,29 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpPost("{gameId}/ready")]
+        public ActionResult<Game> SetPlayerReady(Guid gameId)
+        {
+            var game = _games.FirstOrDefault(g => g.Id == gameId);
+            if (game == null)
+                return NotFound("Game not found");
+
+            if (game.State != GameState.InProgress)
+                return BadRequest("The game is not in progress");
+
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+
+            try
+            {
+                _gameService.SetPlayerReady(game, userId);
+                return Ok(game);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 
     public class CreateLobbyRequest

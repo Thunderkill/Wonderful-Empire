@@ -178,6 +178,29 @@ namespace ItsAWonderfulWorldAPI.Services
             }
         }
 
+        public void SetPlayerReady(Game game, Guid playerId)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            if (game.State != GameState.InProgress)
+                throw new InvalidOperationException("The game is not in progress.");
+
+            if (game.CurrentPhase != GamePhase.Planning)
+                throw new InvalidOperationException("It's not the planning phase.");
+
+            var player = game.Players.FirstOrDefault(p => p.Id == playerId)
+                ?? throw new ArgumentException("Player not found.", nameof(playerId));
+
+            player.IsReady = true;
+            _logger.LogInformation($"Player {player.Name} (ID: {playerId}) is ready in game {game.Id}");
+
+            if (game.AreAllPlayersReady())
+            {
+                EndPlanningPhase(game);
+            }
+        }
+
         public void EndPlanningPhase(Game game)
         {
             if (game == null)
@@ -189,8 +212,13 @@ namespace ItsAWonderfulWorldAPI.Services
             if (game.CurrentPhase != GamePhase.Planning)
                 throw new InvalidOperationException("It's not the planning phase.");
 
+            if (!game.AreAllPlayersReady())
+                throw new InvalidOperationException("Not all players are ready.");
+
             game.CurrentPhase = GamePhase.Production;
             _logger.LogInformation($"Planning phase ended for game {game.Id}. Moving to Production phase.");
+
+            ProduceResources(game);
         }
 
         public void ProduceResources(Game game)
@@ -228,6 +256,7 @@ namespace ItsAWonderfulWorldAPI.Services
                     card.VictoryPoints += player.Resources.Values.Sum() / 5;
                 }
 
+                player.IsReady = false; // Reset ready state for next round
                 _logger.LogInformation($"Production completed for player {player.Name} (ID: {player.Id}) in game {game.Id}");
             }
 
@@ -297,7 +326,8 @@ namespace ItsAWonderfulWorldAPI.Services
                     Resources = currentPlayer.Resources,
                     Hand = currentPlayer.Hand,
                     ConstructionArea = currentPlayer.ConstructionArea,
-                    Empire = currentPlayer.Empire
+                    Empire = currentPlayer.Empire,
+                    IsReady = currentPlayer.IsReady
                 },
                 OtherPlayers = otherPlayers.Select(p => new PlayerStatus
                 {
@@ -306,7 +336,8 @@ namespace ItsAWonderfulWorldAPI.Services
                     Resources = p.Resources,
                     HandCount = p.Hand.Count,
                     ConstructionArea = p.ConstructionArea,
-                    Empire = p.Empire
+                    Empire = p.Empire,
+                    IsReady = p.IsReady
                 }).ToList()
             };
 
@@ -587,6 +618,7 @@ namespace ItsAWonderfulWorldAPI.Services
         public int HandCount { get; set; }
         public List<Card> ConstructionArea { get; set; }
         public List<Card> Empire { get; set; }
+        public bool IsReady { get; set; }
     }
 
     public static class CardExtensions

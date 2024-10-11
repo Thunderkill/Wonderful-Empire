@@ -21,6 +21,7 @@ interface PlayerStatus {
   handCount: number;
   constructionArea: Card[];
   empire: Card[];
+  isReady: boolean;
 }
 
 interface GameStatus {
@@ -119,12 +120,23 @@ const GameBoard: React.FC = () => {
     }
   };
 
+  const handleReady = async () => {
+    try {
+      await api.post(`/api/Game/${gameId}/ready`);
+      fetchGameStatus();
+    } catch (error) {
+      console.error('Failed to set ready state:', error);
+      setError('Failed to set ready state. Please try again.');
+    }
+  };
+
   const getCardTypeString = (type: number): string => {
     const types = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration'];
     return types[type] || 'Unknown';
   };
 
   const renderResourceButtons = (card: Card) => {
+    if (!game) return null;
     const resourceTypes = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration', 'Krystallium'];
     return (
       <div className="resource-buttons">
@@ -132,7 +144,7 @@ const GameBoard: React.FC = () => {
           <button
             key={resource}
             onClick={() => handleAddResource(card.id, resourceTypes.indexOf(resource))}
-            disabled={game?.currentPlayer.resources[resource] < 1}
+            disabled={game.currentPlayer.resources[resource] < 1}
           >
             Add {resource}
           </button>
@@ -233,6 +245,9 @@ const GameBoard: React.FC = () => {
               </div>
             ))}
           </div>
+          <button onClick={handleReady} disabled={game.currentPlayer.isReady}>
+            {game.currentPlayer.isReady ? "Ready" : "Set Ready"}
+          </button>
         </div>
       )}
       
@@ -244,6 +259,7 @@ const GameBoard: React.FC = () => {
             <p>Hand Count: {player.handCount}</p>
             <p>Construction Area Count: {player.constructionArea.length}</p>
             <p>Empire Count: {player.empire.length}</p>
+            <p>Ready: {player.isReady ? "Yes" : "No"}</p>
           </div>
         ))}
       </div>
