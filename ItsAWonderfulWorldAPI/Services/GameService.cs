@@ -380,6 +380,11 @@ namespace ItsAWonderfulWorldAPI.Services
             card.ConstructionCost[resourceType]--;
             player.Resources[resourceType]--;
 
+            // Update the InvestedResources
+            if (!card.InvestedResources.ContainsKey(resourceType))
+                card.InvestedResources[resourceType] = 0;
+            card.InvestedResources[resourceType]++;
+
             _logger.LogInformation($"Added {resourceType} to card {card.Name} (ID: {cardId}) for player {player.Name} (ID: {playerId}) in game {game.Id}");
         }
 

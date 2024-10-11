@@ -33,4 +33,99 @@
   font-weight: bold;
 }
 
+/* New styles for construction progress */
+
+.invested-resources {
+  margin-top: 10px;
+}
+
+.resource-progress {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.progress-bar {
+  width: 100px;
+  height: 10px;
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  margin: 0 10px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background-color: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.resource-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.resource-buttons button {
+  margin: 5px;
+  padding: 5px 10px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.resource-buttons button:hover {
+  background-color: #45a049;
+}
+
+.resource-buttons button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.construction-area {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.player-actions {
+  margin-top: 20px;
+}
+
+.player-actions button {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background-color: #008CBA;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.player-actions button:hover {
+  background-color: #007B9A;
+}
+
+.player-actions button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.other-players {
+  margin-top: 20px;
+}
+
+.player {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
 /* Add any other existing styles here */

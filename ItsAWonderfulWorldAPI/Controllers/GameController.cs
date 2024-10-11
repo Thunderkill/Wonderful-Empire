@@ -202,7 +202,14 @@ namespace ItsAWonderfulWorldAPI.Controllers
                     ResourceAdded = action.ResourceType,
                     Constructed = constructed,
                     UpdatedResources = player.Resources,
-                    RemainingConstructionAreaCards = player.ConstructionArea.Count
+                    RemainingConstructionAreaCards = player.ConstructionArea.Count,
+                    ConstructionAreaCards = player.ConstructionArea.Select(c => new CardStatus
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        ConstructionCost = c.ConstructionCost,
+                        InvestedResources = c.InvestedResources
+                    }).ToList()
                 };
 
                 return Ok(result);
@@ -235,7 +242,14 @@ namespace ItsAWonderfulWorldAPI.Controllers
                     ActionType = PlanActionType.Discard,
                     RecyclingBonus = recyclingBonus,
                     UpdatedResources = player.Resources,
-                    RemainingConstructionAreaCards = player.ConstructionArea.Count
+                    RemainingConstructionAreaCards = player.ConstructionArea.Count,
+                    ConstructionAreaCards = player.ConstructionArea.Select(c => new CardStatus
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        ConstructionCost = c.ConstructionCost,
+                        InvestedResources = c.InvestedResources
+                    }).ToList()
                 };
 
                 return Ok(result);
@@ -395,5 +409,14 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public Dictionary<ResourceType, int> RecyclingBonus { get; set; }
         public Dictionary<ResourceType, int> UpdatedResources { get; set; }
         public int RemainingConstructionAreaCards { get; set; }
+        public List<CardStatus> ConstructionAreaCards { get; set; }
+    }
+
+    public class CardStatus
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public Dictionary<ResourceType, int> ConstructionCost { get; set; }
+        public Dictionary<ResourceType, int> InvestedResources { get; set; }
     }
 }

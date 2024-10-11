@@ -11,6 +11,7 @@ interface Card {
   victoryPoints: number;
   recyclingBonus: { [key: string]: number };
   specialAbility: number;
+  investedResources: { [key: string]: number };
 }
 
 interface PlayerStatus {
@@ -168,6 +169,27 @@ const GameBoard: React.FC = () => {
     );
   };
 
+  const renderInvestedResources = (card: Card) => {
+    return (
+      <div className="invested-resources">
+        <h5>Construction Progress:</h5>
+        {Object.entries(card.constructionCost).map(([resource, cost]) => {
+          const invested = card.investedResources[resource] || 0;
+          const percentage = Math.min((invested / cost) * 100, 100);
+          return (
+            <div key={resource} className="resource-progress">
+              <span>{resource}: </span>
+              <div className="progress-bar">
+                <div className="progress" style={{ width: `${percentage}%` }}></div>
+              </div>
+              <span>{invested}/{cost}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const EndGameScreen: React.FC<{ game: GameStatus }> = ({ game }) => {
     const allPlayers = [game.currentPlayer, ...game.otherPlayers];
     const sortedPlayers = allPlayers.sort((a, b) => {
@@ -299,12 +321,7 @@ const GameBoard: React.FC = () => {
                 <h4>{card.name}</h4>
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
-                <h5>Construction Cost:</h5>
-                <ul>
-                  {Object.entries(card.constructionCost).map(([resource, amount]) => (
-                    <li key={resource}>{resource}: {amount}</li>
-                  ))}
-                </ul>
+                {renderInvestedResources(card)}
                 {renderResourceButtons(card)}
                 <button onClick={() => handleDiscard(card.id)}>Discard</button>
               </div>
