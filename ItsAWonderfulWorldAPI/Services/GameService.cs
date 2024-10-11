@@ -16,6 +16,66 @@ namespace ItsAWonderfulWorldAPI.Services
             _logger = logger;
         }
 
+        public Game CreateLobby(User host, int maxPlayers)
+        {
+            if (maxPlayers < 2 || maxPlayers > 5)
+                throw new ArgumentException("The game requires 2 to 5 players.", nameof(maxPlayers));
+
+            var game = new Game
+            {
+                Host = new Player(host.Username) { Id = host.Id },
+                MaxPlayers = maxPlayers,
+                State = GameState.Lobby
+            };
+
+            game.Players.Add(game.Host);
+
+            _logger.LogInformation($"Lobby created for game {game.Id} with host {host.Username} (ID: {host.Id})");
+
+            return game;
+        }
+
+        public void JoinLobby(Game game, User user)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            if (game.State != GameState.Lobby)
+                throw new InvalidOperationException("The game is not in lobby state.");
+
+            if (game.Players.Count >= game.MaxPlayers)
+                throw new InvalidOperationException("The lobby is full.");
+
+            if (game.Players.Any(p => p.Id == user.Id))
+                throw new InvalidOperationException("The user is already in the lobby.");
+
+            var player = new Player(user.Username) { Id = user.Id };
+            game.Players.Add(player);
+
+            _logger.LogInformation($"User {user.Username} (ID: {user.Id}) joined lobby for game {game.Id}");
+        }
+
+        public void StartGame(Game game, Guid hostId)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            if (game.State != GameState.Lobby)
+                throw new InvalidOperationException("The game is not in lobby state.");
+
+            if (game.Host.Id != hostId)
+                throw new InvalidOperationException("Only the host can start the game.");
+
+            if (game.Players.Count < 2)
+                throw new InvalidOperationException("At least 2 players are required to start the game.");
+
+            InitializeGame(game);
+
+            game.State = GameState.InProgress;
+
+            _logger.LogInformation($"Game {game.Id} started by host {game.Host.Name} (ID: {hostId})");
+        }
+
         public void InitializeGame(Game game)
         {
             if (game == null)
@@ -36,6 +96,9 @@ namespace ItsAWonderfulWorldAPI.Services
         {
             if (game == null)
                 throw new ArgumentNullException(nameof(game));
+
+            if (game.State != GameState.InProgress)
+                throw new InvalidOperationException("The game is not in progress.");
 
             if (game.CurrentPhase != GamePhase.Draft)
                 throw new InvalidOperationException("It's not the drafting phase.");
@@ -68,31 +131,13 @@ namespace ItsAWonderfulWorldAPI.Services
             _logger.LogInformation($"Card drafted successfully in game {game.Id}");
         }
 
-        private void PassHandsIfNeeded(Game game)
-        {
-            if (game.ShouldPassHands)
-            {
-                PassCards(game);
-                game.PlayersDrafted.Clear();
-                game.ShouldPassHands = false;
-
-                _logger.LogInformation($"Hands passed in game {game.Id}. Current draft direction: {game.CurrentDraftDirection}");
-            }
-        }
-
-        private void CheckDraftingPhaseEnd(Game game)
-        {
-            if (game.Players.All(p => p.Hand.Count == 0))
-            {
-                game.CurrentPhase = GamePhase.Planning;
-                _logger.LogInformation($"Drafting phase ended for game {game.Id}. Moving to Planning phase.");
-            }
-        }
-
         public void PlanCard(Game game, Guid playerId, Guid cardId, bool construct)
         {
             if (game == null)
                 throw new ArgumentNullException(nameof(game));
+
+            if (game.State != GameState.InProgress)
+                throw new InvalidOperationException("The game is not in progress.");
 
             if (game.CurrentPhase != GamePhase.Planning)
                 throw new InvalidOperationException("It's not the planning phase.");
@@ -154,6 +199,9 @@ namespace ItsAWonderfulWorldAPI.Services
             if (game == null)
                 throw new ArgumentNullException(nameof(game));
 
+            if (game.State != GameState.InProgress)
+                throw new InvalidOperationException("The game is not in progress.");
+
             if (game.CurrentPhase != GamePhase.Planning)
                 throw new InvalidOperationException("It's not the planning phase.");
 
@@ -165,6 +213,9 @@ namespace ItsAWonderfulWorldAPI.Services
         {
             if (game == null)
                 throw new ArgumentNullException(nameof(game));
+
+            if (game.State != GameState.InProgress)
+                throw new InvalidOperationException("The game is not in progress.");
 
             if (game.CurrentPhase != GamePhase.Production)
                 throw new InvalidOperationException("It's not the production phase.");
@@ -208,31 +259,13 @@ namespace ItsAWonderfulWorldAPI.Services
             CheckGameOver(game);
         }
 
-        public void CheckGameOver(Game game)
-        {
-            if (game == null)
-                throw new ArgumentNullException(nameof(game));
-
-            if (game.CurrentRound > 4)
-            {
-                game.CurrentPhase = GamePhase.GameOver;
-                _logger.LogInformation($"Game {game.Id} is over after 4 rounds");
-            }
-            else
-            {
-                game.CurrentPhase = GamePhase.Draft;
-                DealCards(game);
-                _logger.LogInformation($"Starting new round for game {game.Id}. Current round: {game.CurrentRound}");
-            }
-        }
-
         public Dictionary<Guid, int> CalculateFinalScores(Game game)
         {
             if (game == null)
                 throw new ArgumentNullException(nameof(game));
 
-            if (game.CurrentPhase != GamePhase.GameOver)
-                throw new InvalidOperationException("The game is not over yet.");
+            if (game.State != GameState.Finished)
+                throw new InvalidOperationException("The game is not finished yet.");
 
             _logger.LogInformation($"Calculating final scores for game {game.Id}");
 
@@ -252,10 +285,64 @@ namespace ItsAWonderfulWorldAPI.Services
             return scores;
         }
 
-        public void DealInitialCards(Game game)
+        private void CreateDevelopmentDeck(Game game)
+        {
+            string[] cardNames = {
+                "Recycling Plant", "Wind Turbines", "Research Lab", "Financial District", "Space Station",
+                "Hydroelectric Dam", "Quantum Computer", "Stock Exchange", "Mars Colony", "Fusion Reactor",
+                "AI Research Center", "Orbital Hotel", "Underwater City", "Time Machine", "Antimatter Factory"
+            };
+
+            for (int i = 0; i < 150; i++)
+            {
+                game.DevelopmentDeck.Add(GenerateCard(cardNames[i % cardNames.Length], (CardType)(i % 5)));
+            }
+
+            game.DevelopmentDeck = game.DevelopmentDeck.OrderBy(c => _random.Next()).ToList();
+            _logger.LogInformation($"Development deck created and shuffled for game {game.Id}");
+        }
+
+        private void DealInitialCards(Game game)
         {
             _logger.LogInformation($"Dealing initial cards for game {game.Id}");
             DealCards(game);
+        }
+
+        private void PassHandsIfNeeded(Game game)
+        {
+            if (game.ShouldPassHands)
+            {
+                PassCards(game);
+                game.PlayersDrafted.Clear();
+                game.ShouldPassHands = false;
+
+                _logger.LogInformation($"Hands passed in game {game.Id}. Current draft direction: {game.CurrentDraftDirection}");
+            }
+        }
+
+        private void CheckDraftingPhaseEnd(Game game)
+        {
+            if (game.Players.All(p => p.Hand.Count == 0))
+            {
+                game.CurrentPhase = GamePhase.Planning;
+                _logger.LogInformation($"Drafting phase ended for game {game.Id}. Moving to Planning phase.");
+            }
+        }
+
+        private void CheckGameOver(Game game)
+        {
+            if (game.CurrentRound > 4)
+            {
+                game.CurrentPhase = GamePhase.GameOver;
+                game.State = GameState.Finished;
+                _logger.LogInformation($"Game {game.Id} is over after 4 rounds");
+            }
+            else
+            {
+                game.CurrentPhase = GamePhase.Draft;
+                DealCards(game);
+                _logger.LogInformation($"Starting new round for game {game.Id}. Current round: {game.CurrentRound}");
+            }
         }
 
         private int CalculateSpecialScoringPoints(Player player)
@@ -316,23 +403,6 @@ namespace ItsAWonderfulWorldAPI.Services
                     _logger.LogInformation($"Player {player.Name} (ID: {player.Id}) converted {conversionAmount * conversion.Rate} {conversion.From} to {conversionAmount} {conversion.To}");
                 }
             }
-        }
-
-        private void CreateDevelopmentDeck(Game game)
-        {
-            string[] cardNames = {
-                "Recycling Plant", "Wind Turbines", "Research Lab", "Financial District", "Space Station",
-                "Hydroelectric Dam", "Quantum Computer", "Stock Exchange", "Mars Colony", "Fusion Reactor",
-                "AI Research Center", "Orbital Hotel", "Underwater City", "Time Machine", "Antimatter Factory"
-            };
-
-            for (int i = 0; i < 150; i++)
-            {
-                game.DevelopmentDeck.Add(GenerateCard(cardNames[i % cardNames.Length], (CardType)(i % 5)));
-            }
-
-            game.DevelopmentDeck = game.DevelopmentDeck.OrderBy(c => _random.Next()).ToList();
-            _logger.LogInformation($"Development deck created and shuffled for game {game.Id}");
         }
 
         private Card GenerateCard(string name, CardType type)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using ItsAWonderfulWorldAPI.Models;
 using ItsAWonderfulWorldAPI.Services;
@@ -29,7 +30,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 Id = g.Id,
                 PlayerCount = g.Players.Count,
                 CurrentRound = g.CurrentRound,
-                CurrentPhase = g.CurrentPhase
+                CurrentPhase = g.CurrentPhase,
+                State = g.State,
+                MaxPlayers = g.MaxPlayers
             });
 
             return Ok(gameSummaries);
@@ -48,6 +51,13 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 CurrentRound = game.CurrentRound,
                 CurrentPhase = game.CurrentPhase,
                 CurrentDraftDirection = game.CurrentDraftDirection,
+                State = game.State,
+                MaxPlayers = game.MaxPlayers,
+                Host = new PlayerStatus
+                {
+                    Id = game.Host.Id,
+                    Name = game.Host.Name
+                },
                 Players = game.Players.Select(p => new PlayerStatus
                 {
                     Id = p.Id,
@@ -62,24 +72,69 @@ namespace ItsAWonderfulWorldAPI.Controllers
             return Ok(gameStatus);
         }
 
-        [HttpPost("create")]
-        public ActionResult<Game> CreateGame([FromBody] List<string> playerNames)
+        [HttpPost("create-lobby")]
+        public ActionResult<Game> CreateLobby([FromBody] CreateLobbyRequest request)
         {
-            if (playerNames == null || playerNames.Count < 2 || playerNames.Count > 5)
-            {
-                return BadRequest("The game requires 2 to 5 players.");
-            }
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var username = User.FindFirst(ClaimTypes.Name)?.Value;
 
-            var game = new Game();
-            foreach (var playerName in playerNames)
+            if (string.IsNullOrEmpty(username))
             {
-                game.Players.Add(new Player(playerName));
+                return BadRequest("User not found");
             }
 
             try
             {
-                _gameService.InitializeGame(game);
+                var user = new User { Id = userId, Username = username };
+                var game = _gameService.CreateLobby(user, request.MaxPlayers);
                 _games.Add(game);
+                return Ok(game);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("{gameId}/join")]
+        public ActionResult<Game> JoinLobby(Guid gameId)
+        {
+            var game = _games.FirstOrDefault(g => g.Id == gameId);
+            if (game == null)
+                return NotFound("Game not found");
+
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var username = User.FindFirst(ClaimTypes.Name)?.Value;
+
+            if (string.IsNullOrEmpty(username))
+            {
+                return BadRequest("User not found");
+            }
+
+            try
+            {
+                var user = new User { Id = userId, Username = username };
+                _gameService.JoinLobby(game, user);
+                return Ok(game);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("{gameId}/start")]
+        public ActionResult<Game> StartGame(Guid gameId)
+        {
+            var game = _games.FirstOrDefault(g => g.Id == gameId);
+            if (game == null)
+                return NotFound("Game not found");
+
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+
+            try
+            {
+                _gameService.StartGame(game, userId);
                 return Ok(game);
             }
             catch (Exception ex)
@@ -94,6 +149,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
             var game = _games.FirstOrDefault(g => g.Id == gameId);
             if (game == null)
                 return NotFound("Game not found");
+
+            if (game.State != GameState.InProgress)
+                return BadRequest("The game is not in progress");
 
             try
             {
@@ -125,6 +183,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
             if (game == null)
                 return NotFound("Game not found");
 
+            if (game.State != GameState.InProgress)
+                return BadRequest("The game is not in progress");
+
             try
             {
                 _gameService.PlanCard(game, planAction.PlayerId, planAction.CardId, planAction.Construct);
@@ -142,6 +203,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
             var game = _games.FirstOrDefault(g => g.Id == gameId);
             if (game == null)
                 return NotFound("Game not found");
+
+            if (game.State != GameState.InProgress)
+                return BadRequest("The game is not in progress");
 
             try
             {
@@ -161,6 +225,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
             if (game == null)
                 return NotFound("Game not found");
 
+            if (game.State != GameState.InProgress)
+                return BadRequest("The game is not in progress");
+
             try
             {
                 _gameService.ProduceResources(game);
@@ -179,6 +246,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
             if (game == null)
                 return NotFound("Game not found");
 
+            if (game.State != GameState.Finished)
+                return BadRequest("The game is not finished yet");
+
             try
             {
                 var scores = _gameService.CalculateFinalScores(game);
@@ -189,6 +259,11 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+    }
+
+    public class CreateLobbyRequest
+    {
+        public int MaxPlayers { get; set; }
     }
 
     public class DraftAction
@@ -210,6 +285,8 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public int PlayerCount { get; set; }
         public int CurrentRound { get; set; }
         public GamePhase CurrentPhase { get; set; }
+        public GameState State { get; set; }
+        public int MaxPlayers { get; set; }
     }
 
     public class DraftResult
@@ -228,6 +305,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public int CurrentRound { get; set; }
         public GamePhase CurrentPhase { get; set; }
         public DraftDirection CurrentDraftDirection { get; set; }
+        public GameState State { get; set; }
+        public int MaxPlayers { get; set; }
+        public PlayerStatus Host { get; set; }
         public List<PlayerStatus> Players { get; set; }
     }
 
