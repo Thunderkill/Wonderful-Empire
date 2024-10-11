@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ItsAWonderfulWorldAPI.Models
 {
@@ -16,6 +17,12 @@ namespace ItsAWonderfulWorldAPI.Models
         public bool ShouldPassHands { get; set; }
         public DraftDirection CurrentDraftDirection { get; set; }
         public int MaxPlayers { get; set; }
+
+        // New property to indicate if the current user has joined
+        public bool HasCurrentUserJoined(Guid? currentUserId)
+        {
+            return currentUserId.HasValue && Players.Any(p => p.Id == currentUserId.Value);
+        }
 
         public Game()
         {

@@ -55,6 +55,14 @@ namespace ItsAWonderfulWorldAPI.Services
             _logger.LogInformation($"User {user.Username} (ID: {user.Id}) joined lobby for game {game.Id}");
         }
 
+        public bool HasUserJoinedGame(Game game, Guid userId)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            return game.Players.Any(p => p.Id == userId);
+        }
+
         public void StartGame(Game game, Guid hostId)
         {
             if (game == null)
@@ -150,47 +158,23 @@ namespace ItsAWonderfulWorldAPI.Services
 
             _logger.LogInformation($"Player {player.Name} (ID: {playerId}) planning card {card.Name} (ID: {cardId}) in game {game.Id}. Construct: {construct}");
 
-            player.ConstructionArea.Remove(card);
-
             if (construct)
             {
-                var constructionCost = new Dictionary<ResourceType, int>(card.ConstructionCost);
-                int reducedCostCards = player.Empire.Count(c => c.SpecialAbility == SpecialAbility.ReducedConstructionCost);
-                
-                foreach (var resource in constructionCost.Keys.ToList())
+                if (card.IsConstructed())
                 {
-                    while (reducedCostCards > 0 && constructionCost[resource] > 0)
-                    {
-                        constructionCost[resource]--;
-                        reducedCostCards--;
-                    }
-                }
-
-                bool canConstruct = constructionCost.All(cost => player.Resources[cost.Key] >= cost.Value);
-
-                if (canConstruct)
-                {
-                    foreach (var cost in constructionCost)
-                    {
-                        player.Resources[cost.Key] -= cost.Value;
-                    }
-                    player.Empire.Add(card);
+                    MoveCardToEmpire(game, playerId, cardId);
                     _logger.LogInformation($"Card {card.Name} (ID: {cardId}) constructed successfully in game {game.Id}");
                 }
                 else
                 {
-                    player.ConstructionArea.Add(card);
                     _logger.LogWarning($"Not enough resources to construct card {card.Name} (ID: {cardId}) in game {game.Id}");
                     throw new InvalidOperationException("Not enough resources to construct this card.");
                 }
             }
             else
             {
-                foreach (var resource in card.RecyclingBonus)
-                {
-                    player.Resources[resource.Key] += resource.Value;
-                }
-                _logger.LogInformation($"Card {card.Name} (ID: {cardId}) recycled successfully in game {game.Id}");
+                DiscardCard(game, playerId, cardId);
+                _logger.LogInformation($"Card {card.Name} (ID: {cardId}) discarded and recycling bonus received in game {game.Id}");
             }
         }
 
@@ -283,6 +267,104 @@ namespace ItsAWonderfulWorldAPI.Services
             }
 
             return scores;
+        }
+
+        public GameStatus GetGameStatus(Game game, Guid playerId)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            var currentPlayer = game.Players.FirstOrDefault(p => p.Id == playerId)
+                ?? throw new ArgumentException("Player not found in the game.", nameof(playerId));
+
+            var otherPlayers = game.Players.Where(p => p.Id != playerId).ToList();
+
+            var gameStatus = new GameStatus
+            {
+                GameId = game.Id,
+                GameState = game.State,
+                CurrentPhase = game.CurrentPhase,
+                CurrentRound = game.CurrentRound,
+                CurrentPlayer = new PlayerStatus
+                {
+                    Id = currentPlayer.Id,
+                    Name = currentPlayer.Name,
+                    Resources = currentPlayer.Resources,
+                    Hand = currentPlayer.Hand,
+                    ConstructionArea = currentPlayer.ConstructionArea,
+                    Empire = currentPlayer.Empire
+                },
+                OtherPlayers = otherPlayers.Select(p => new PlayerStatus
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Resources = p.Resources,
+                    HandCount = p.Hand.Count,
+                    ConstructionArea = p.ConstructionArea,
+                    Empire = p.Empire
+                }).ToList()
+            };
+
+            _logger.LogInformation($"Game status retrieved for player {currentPlayer.Name} (ID: {playerId}) in game {game.Id}");
+
+            return gameStatus;
+        }
+
+        public void AddResourceToCard(Game game, Guid playerId, Guid cardId, ResourceType resourceType)
+        {
+            var player = game.Players.FirstOrDefault(p => p.Id == playerId)
+                ?? throw new ArgumentException("Player not found.", nameof(playerId));
+
+            var card = player.ConstructionArea.FirstOrDefault(c => c.Id == cardId)
+                ?? throw new ArgumentException("Card not found in player's construction area.", nameof(cardId));
+
+            if (!card.ConstructionCost.ContainsKey(resourceType))
+                throw new InvalidOperationException("This resource is not required for the card's construction.");
+
+            if (card.ConstructionCost[resourceType] == 0)
+                throw new InvalidOperationException("This resource is already fully added to the card.");
+
+            if (player.Resources[resourceType] == 0)
+                throw new InvalidOperationException("Player doesn't have this resource.");
+
+            card.ConstructionCost[resourceType]--;
+            player.Resources[resourceType]--;
+
+            _logger.LogInformation($"Added {resourceType} to card {card.Name} (ID: {cardId}) for player {player.Name} (ID: {playerId}) in game {game.Id}");
+        }
+
+        public void MoveCardToEmpire(Game game, Guid playerId, Guid cardId)
+        {
+            var player = game.Players.FirstOrDefault(p => p.Id == playerId)
+                ?? throw new ArgumentException("Player not found.", nameof(playerId));
+
+            var card = player.ConstructionArea.FirstOrDefault(c => c.Id == cardId)
+                ?? throw new ArgumentException("Card not found in player's construction area.", nameof(cardId));
+
+            player.ConstructionArea.Remove(card);
+            player.Empire.Add(card);
+
+            _logger.LogInformation($"Moved card {card.Name} (ID: {cardId}) from construction area to empire for player {player.Name} (ID: {playerId}) in game {game.Id}");
+        }
+
+        public Dictionary<ResourceType, int> DiscardCard(Game game, Guid playerId, Guid cardId)
+        {
+            var player = game.Players.FirstOrDefault(p => p.Id == playerId)
+                ?? throw new ArgumentException("Player not found.", nameof(playerId));
+
+            var card = player.ConstructionArea.FirstOrDefault(c => c.Id == cardId)
+                ?? throw new ArgumentException("Card not found in player's construction area.", nameof(cardId));
+
+            player.ConstructionArea.Remove(card);
+
+            foreach (var resource in card.RecyclingBonus)
+            {
+                player.Resources[resource.Key] += resource.Value;
+            }
+
+            _logger.LogInformation($"Discarded card {card.Name} (ID: {cardId}) for player {player.Name} (ID: {playerId}) in game {game.Id}. Recycling bonus applied.");
+
+            return card.RecyclingBonus;
         }
 
         private void CreateDevelopmentDeck(Game game)
@@ -477,6 +559,35 @@ namespace ItsAWonderfulWorldAPI.Services
             }
 
             _logger.LogInformation($"Cards passed successfully in game {game.Id}");
+        }
+    }
+
+    public class GameStatus
+    {
+        public Guid GameId { get; set; }
+        public GameState GameState { get; set; }
+        public GamePhase CurrentPhase { get; set; }
+        public int CurrentRound { get; set; }
+        public PlayerStatus CurrentPlayer { get; set; }
+        public List<PlayerStatus> OtherPlayers { get; set; }
+    }
+
+    public class PlayerStatus
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public Dictionary<ResourceType, int> Resources { get; set; }
+        public List<Card> Hand { get; set; }
+        public int HandCount { get; set; }
+        public List<Card> ConstructionArea { get; set; }
+        public List<Card> Empire { get; set; }
+    }
+
+    public static class CardExtensions
+    {
+        public static bool IsConstructed(this Card card)
+        {
+            return card.ConstructionCost.All(cost => cost.Value == 0);
         }
     }
 }

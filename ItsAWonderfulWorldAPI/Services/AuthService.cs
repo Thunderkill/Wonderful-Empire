@@ -12,7 +12,10 @@ namespace ItsAWonderfulWorldAPI.Services
     public class AuthService
     {
         private readonly IConfiguration _configuration;
-        private readonly List<User> _users = new List<User>();
+        private readonly List<User> _users = new List<User>() {
+            new User { Id = Guid.NewGuid(), Username = "janne", PasswordHash = BCrypt.Net.BCrypt.HashPassword("asd") },
+            new User { Id = Guid.NewGuid(), Username = "kek", PasswordHash = BCrypt.Net.BCrypt.HashPassword("kek") },
+        };
 
         public AuthService(IConfiguration configuration)
         {

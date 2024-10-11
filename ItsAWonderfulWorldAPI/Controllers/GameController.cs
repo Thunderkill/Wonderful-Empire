@@ -25,6 +25,8 @@ namespace ItsAWonderfulWorldAPI.Controllers
         [HttpGet("list")]
         public ActionResult<IEnumerable<GameSummary>> ListGames()
         {
+            var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+
             var gameSummaries = _games.Select(g => new GameSummary
             {
                 Id = g.Id,
@@ -32,7 +34,8 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 CurrentRound = g.CurrentRound,
                 CurrentPhase = g.CurrentPhase,
                 State = g.State,
-                MaxPlayers = g.MaxPlayers
+                MaxPlayers = g.MaxPlayers,
+                HasCurrentUserJoined = g.HasCurrentUserJoined(currentUserId)
             });
 
             return Ok(gameSummaries);
@@ -45,30 +48,12 @@ namespace ItsAWonderfulWorldAPI.Controllers
             if (game == null)
                 return NotFound("Game not found");
 
-            var gameStatus = new GameStatus
-            {
-                Id = game.Id,
-                CurrentRound = game.CurrentRound,
-                CurrentPhase = game.CurrentPhase,
-                CurrentDraftDirection = game.CurrentDraftDirection,
-                State = game.State,
-                MaxPlayers = game.MaxPlayers,
-                Host = new PlayerStatus
-                {
-                    Id = game.Host.Id,
-                    Name = game.Host.Name
-                },
-                Players = game.Players.Select(p => new PlayerStatus
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    HandCount = p.Hand.Count,
-                    ConstructionAreaCount = p.ConstructionArea.Count,
-                    BuiltCardsCount = p.Empire.Count,
-                    Resources = p.Resources
-                }).ToList()
-            };
+            var currentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            
+            if (!_gameService.HasUserJoinedGame(game, currentUserId))
+                return BadRequest("You are not a player in this game");
 
+            var gameStatus = _gameService.GetGameStatus(game, currentUserId);
             return Ok(gameStatus);
         }
 
@@ -176,8 +161,8 @@ namespace ItsAWonderfulWorldAPI.Controllers
             }
         }
 
-        [HttpPost("{gameId}/plan")]
-        public ActionResult<Game> PlanCard(Guid gameId, [FromBody] PlanAction planAction)
+        [HttpPost("{gameId}/addresource")]
+        public ActionResult<PlanResult> AddResource(Guid gameId, [FromBody] AddResourceAction action)
         {
             var game = _games.FirstOrDefault(g => g.Id == gameId);
             if (game == null)
@@ -188,8 +173,64 @@ namespace ItsAWonderfulWorldAPI.Controllers
 
             try
             {
-                _gameService.PlanCard(game, planAction.PlayerId, planAction.CardId, planAction.Construct);
-                return Ok(game);
+                _gameService.AddResourceToCard(game, action.PlayerId, action.CardId, action.ResourceType);
+                
+                var player = game.Players.FirstOrDefault(p => p.Id == action.PlayerId);
+                var card = player.Empire.FirstOrDefault(c => c.Id == action.CardId) ?? 
+                           player.ConstructionArea.FirstOrDefault(c => c.Id == action.CardId);
+
+                bool constructed = card.IsConstructed();
+                if (constructed)
+                {
+                    _gameService.MoveCardToEmpire(game, action.PlayerId, action.CardId);
+                }
+
+                var result = new PlanResult
+                {
+                    Success = true,
+                    ActionType = PlanActionType.AddResource,
+                    CardName = card?.Name,
+                    ResourceAdded = action.ResourceType,
+                    Constructed = constructed,
+                    UpdatedResources = player.Resources,
+                    RemainingConstructionAreaCards = player.ConstructionArea.Count
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("{gameId}/discard")]
+        public ActionResult<PlanResult> Discard(Guid gameId, [FromBody] DiscardAction action)
+        {
+            var game = _games.FirstOrDefault(g => g.Id == gameId);
+            if (game == null)
+                return NotFound("Game not found");
+
+            if (game.State != GameState.InProgress)
+                return BadRequest("The game is not in progress");
+
+            try
+            {
+                var recyclingBonus = _gameService.DiscardCard(game, action.PlayerId, action.CardId);
+                
+                var player = game.Players.FirstOrDefault(p => p.Id == action.PlayerId);
+
+                var result = new PlanResult
+                {
+                    Success = true,
+                    ActionType = PlanActionType.Discard,
+                    CardName = action.CardName,
+                    RecyclingBonus = recyclingBonus,
+                    UpdatedResources = player.Resources,
+                    RemainingConstructionAreaCards = player.ConstructionArea.Count
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -272,11 +313,24 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public Guid CardId { get; set; }
     }
 
-    public class PlanAction
+    public enum PlanActionType
+    {
+        AddResource,
+        Discard
+    }
+
+    public class AddResourceAction
     {
         public Guid PlayerId { get; set; }
         public Guid CardId { get; set; }
-        public bool Construct { get; set; }
+        public ResourceType ResourceType { get; set; }
+    }
+
+    public class DiscardAction
+    {
+        public Guid PlayerId { get; set; }
+        public Guid CardId { get; set; }
+        public string CardName { get; set; }
     }
 
     public class GameSummary
@@ -287,6 +341,7 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public GamePhase CurrentPhase { get; set; }
         public GameState State { get; set; }
         public int MaxPlayers { get; set; }
+        public bool HasCurrentUserJoined { get; set; }
     }
 
     public class DraftResult
@@ -299,25 +354,15 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public int CurrentRound { get; set; }
     }
 
-    public class GameStatus
+    public class PlanResult
     {
-        public Guid Id { get; set; }
-        public int CurrentRound { get; set; }
-        public GamePhase CurrentPhase { get; set; }
-        public DraftDirection CurrentDraftDirection { get; set; }
-        public GameState State { get; set; }
-        public int MaxPlayers { get; set; }
-        public PlayerStatus Host { get; set; }
-        public List<PlayerStatus> Players { get; set; }
-    }
-
-    public class PlayerStatus
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; }
-        public int HandCount { get; set; }
-        public int ConstructionAreaCount { get; set; }
-        public int BuiltCardsCount { get; set; }
-        public Dictionary<ResourceType, int> Resources { get; set; }
+        public bool Success { get; set; }
+        public PlanActionType ActionType { get; set; }
+        public string CardName { get; set; }
+        public ResourceType? ResourceAdded { get; set; }
+        public bool? Constructed { get; set; }
+        public Dictionary<ResourceType, int> RecyclingBonus { get; set; }
+        public Dictionary<ResourceType, int> UpdatedResources { get; set; }
+        public int RemainingConstructionAreaCards { get; set; }
     }
 }
