@@ -55,6 +55,14 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 return BadRequest("You are not a player in this game");
 
             var gameStatus = _gameService.GetGameStatus(game, currentUserId);
+
+            if (game.State == GameState.Finished)
+            {
+                var finalScores = _gameService.CalculateFinalScores(game);
+                gameStatus.FinalScores = finalScores;
+                gameStatus.WinnerId = game.WinnerId;
+            }
+
             return Ok(gameStatus);
         }
 

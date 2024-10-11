@@ -349,6 +349,12 @@ namespace ItsAWonderfulWorldAPI.Services
                 }).ToList()
             };
 
+            if (game.State == GameState.Finished)
+            {
+                gameStatus.FinalScores = CalculateFinalScores(game);
+                gameStatus.WinnerId = game.WinnerId;
+            }
+
             _logger.LogInformation($"Game status retrieved for player {currentPlayer.Name} (ID: {playerId}) in game {game.Id}");
 
             return gameStatus;
@@ -457,7 +463,7 @@ namespace ItsAWonderfulWorldAPI.Services
 
         private void CheckGameOver(Game game)
         {
-            if (game.CurrentRound > 4)
+            if (game.CurrentRound >= 4)
             {
                 game.CurrentPhase = GamePhase.GameOver;
                 game.State = GameState.Finished;
@@ -670,6 +676,8 @@ namespace ItsAWonderfulWorldAPI.Services
         public PlayerStatus Host { get; set; }
         public PlayerStatus CurrentPlayer { get; set; }
         public List<PlayerStatus> OtherPlayers { get; set; }
+        public Dictionary<Guid, int> FinalScores { get; set; }
+        public Guid? WinnerId { get; set; }
     }
 
     public class PlayerStatus

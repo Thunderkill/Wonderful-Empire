@@ -33,6 +33,8 @@ interface GameStatus {
   host: PlayerStatus;
   currentPlayer: PlayerStatus;
   otherPlayers: PlayerStatus[];
+  winnerId?: string;
+  finalScores?: { [playerId: string]: number };
 }
 
 const GameBoard: React.FC = () => {
@@ -166,6 +168,46 @@ const GameBoard: React.FC = () => {
     );
   };
 
+  const EndGameScreen: React.FC<{ game: GameStatus }> = ({ game }) => {
+    const allPlayers = [game.currentPlayer, ...game.otherPlayers];
+    const sortedPlayers = allPlayers.sort((a, b) => {
+      const scoreA = game.finalScores?.[a.id] || 0;
+      const scoreB = game.finalScores?.[b.id] || 0;
+      return scoreB - scoreA;
+    });
+    const winner = sortedPlayers.find(player => player.id === game.winnerId);
+
+    return (
+      <div className="end-game-screen">
+        <h2>Game Over</h2>
+        {winner && <h3>Winner: {winner.name}</h3>}
+        <h4>Final Scores:</h4>
+        <ul>
+          {sortedPlayers.map((player, index) => (
+            <li key={player.id}>
+              {index + 1}. {player.name}: {game.finalScores?.[player.id] || 0} points
+              {player.id === game.winnerId && " (Winner)"}
+            </li>
+          ))}
+        </ul>
+        <h4>Empire Summary:</h4>
+        {sortedPlayers.map(player => (
+          <div key={player.id} className="player-summary">
+            <h5>{player.name}</h5>
+            <p>Cards in Empire: {player.empire.length}</p>
+            <p>Resources:</p>
+            <ul>
+              {Object.entries(player.resources).map(([resource, amount]) => (
+                <li key={resource}>{resource}: {amount}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <button onClick={() => navigate('/')}>Return to Lobby</button>
+      </div>
+    );
+  };
+
   if (!game) {
     return <div>Loading...</div>;
   }
@@ -200,6 +242,11 @@ const GameBoard: React.FC = () => {
         )}
       </div>
     );
+  }
+
+  if (game.gameState === 2) {
+    // Game finished state
+    return <EndGameScreen game={game} />;
   }
 
   // In-game state
