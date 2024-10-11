@@ -10,6 +10,9 @@ namespace ItsAWonderfulWorldAPI.Models
         public int CurrentRound { get; set; }
         public GamePhase CurrentPhase { get; set; }
         public List<Card> DevelopmentDeck { get; set; }
+        public HashSet<Guid> PlayersDrafted { get; set; }
+        public bool ShouldPassHands { get; set; }
+        public DraftDirection CurrentDraftDirection { get; set; }
 
         public Game()
         {
@@ -18,6 +21,9 @@ namespace ItsAWonderfulWorldAPI.Models
             CurrentRound = 1;
             CurrentPhase = GamePhase.Draft;
             DevelopmentDeck = new List<Card>();
+            PlayersDrafted = new HashSet<Guid>();
+            ShouldPassHands = false;
+            CurrentDraftDirection = DraftDirection.Clockwise;
         }
     }
 
@@ -27,5 +33,11 @@ namespace ItsAWonderfulWorldAPI.Models
         Planning,
         Production,
         GameOver
+    }
+
+    public enum DraftDirection
+    {
+        Clockwise,
+        Counterclockwise
     }
 }

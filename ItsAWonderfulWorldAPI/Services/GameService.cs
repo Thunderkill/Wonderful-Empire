@@ -43,6 +43,9 @@ namespace ItsAWonderfulWorldAPI.Services
             var player = game.Players.FirstOrDefault(p => p.Id == playerId) 
                 ?? throw new ArgumentException("Player not found.", nameof(playerId));
 
+            if (game.PlayersDrafted.Contains(playerId))
+                throw new InvalidOperationException("Player has already drafted this round.");
+
             var card = player.Hand.FirstOrDefault(c => c.Id == cardId)
                 ?? throw new ArgumentException("Card not found in player's hand.", nameof(cardId));
 
@@ -51,9 +54,39 @@ namespace ItsAWonderfulWorldAPI.Services
             player.Hand.Remove(card);
             player.ConstructionArea.Add(card);
 
-            PassCards(game, player);
+            game.PlayersDrafted.Add(playerId);
+
+            if (game.PlayersDrafted.Count == game.Players.Count)
+            {
+                game.ShouldPassHands = true;
+            }
+
+            PassHandsIfNeeded(game);
+
+            CheckDraftingPhaseEnd(game);
 
             _logger.LogInformation($"Card drafted successfully in game {game.Id}");
+        }
+
+        private void PassHandsIfNeeded(Game game)
+        {
+            if (game.ShouldPassHands)
+            {
+                PassCards(game);
+                game.PlayersDrafted.Clear();
+                game.ShouldPassHands = false;
+
+                _logger.LogInformation($"Hands passed in game {game.Id}. Current draft direction: {game.CurrentDraftDirection}");
+            }
+        }
+
+        private void CheckDraftingPhaseEnd(Game game)
+        {
+            if (game.Players.All(p => p.Hand.Count == 0))
+            {
+                game.CurrentPhase = GamePhase.Planning;
+                _logger.LogInformation($"Drafting phase ended for game {game.Id}. Moving to Planning phase.");
+            }
         }
 
         public void PlanCard(Game game, Guid playerId, Guid cardId, bool construct)
@@ -116,6 +149,18 @@ namespace ItsAWonderfulWorldAPI.Services
             }
         }
 
+        public void EndPlanningPhase(Game game)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            if (game.CurrentPhase != GamePhase.Planning)
+                throw new InvalidOperationException("It's not the planning phase.");
+
+            game.CurrentPhase = GamePhase.Production;
+            _logger.LogInformation($"Planning phase ended for game {game.Id}. Moving to Production phase.");
+        }
+
         public void ProduceResources(Game game)
         {
             if (game == null)
@@ -152,9 +197,15 @@ namespace ItsAWonderfulWorldAPI.Services
             }
 
             game.CurrentRound++;
-            CheckGameOver(game);
 
-            _logger.LogInformation($"Production phase completed for game {game.Id}. Current round: {game.CurrentRound}");
+            // Change draft direction for the next round
+            game.CurrentDraftDirection = game.CurrentDraftDirection == DraftDirection.Clockwise
+                ? DraftDirection.Counterclockwise
+                : DraftDirection.Clockwise;
+
+            _logger.LogInformation($"Production phase completed for game {game.Id}. Current round: {game.CurrentRound}. New draft direction: {game.CurrentDraftDirection}");
+
+            CheckGameOver(game);
         }
 
         public void CheckGameOver(Game game)
@@ -342,17 +393,18 @@ namespace ItsAWonderfulWorldAPI.Services
             }
         }
 
-        private void PassCards(Game game, Player currentPlayer)
+        private void PassCards(Game game)
         {
-            var playerIndex = game.Players.IndexOf(currentPlayer);
-            var nextPlayerIndex = (playerIndex + 1) % game.Players.Count;
-            var nextPlayer = game.Players[nextPlayerIndex];
+            List<List<Card>> hands = game.Players.Select(p => p.Hand.ToList()).ToList();
 
-            _logger.LogInformation($"Passing cards from player {currentPlayer.Name} to player {nextPlayer.Name} in game {game.Id}");
+            for (int i = 0; i < game.Players.Count; i++)
+            {
+                int nextIndex = game.CurrentDraftDirection == DraftDirection.Clockwise
+                    ? (i + 1) % game.Players.Count
+                    : (i - 1 + game.Players.Count) % game.Players.Count;
 
-            var cardsToPass = currentPlayer.Hand.ToList();
-            currentPlayer.Hand.Clear();
-            nextPlayer.Hand.AddRange(cardsToPass);
+                game.Players[nextIndex].Hand = hands[i];
+            }
 
             _logger.LogInformation($"Cards passed successfully in game {game.Id}");
         }
