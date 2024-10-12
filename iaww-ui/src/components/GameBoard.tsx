@@ -156,16 +156,26 @@ const GameBoard: React.FC = () => {
     return types[type] || 'Unknown';
   };
 
+  const getResourceColor = (type: number): string => {
+    const colors = ['#ada594', '#343433', '#59a430', '#c4b822', '#3189c3', '#a71111'];
+    return colors[type] || '#000000';
+  };
+
+  const getResourceTypeNumber = (resourceName: string): number => {
+    const resourceTypes = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration', 'Krystallium'];
+    return resourceTypes.indexOf(resourceName);
+  };
+
   const renderResourceButtons = (card: Card) => {
     if (!game) return null;
-    const resourceTypes = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration', 'Krystallium'];
     return (
       <div className="resource-buttons">
         {Object.entries(card.constructionCost).map(([resource, cost]) => (
           <button
             key={resource}
-            onClick={() => handleAddResource(card.id, resourceTypes.indexOf(resource))}
+            onClick={() => handleAddResource(card.id, getResourceTypeNumber(resource))}
             disabled={game.currentPlayer.resources[resource] < 1 || (card.investedResources[resource] || 0) >= cost}
+            style={{backgroundColor: getResourceColor(getResourceTypeNumber(resource))}}
           >
             Add {resource}
           </button>
@@ -183,9 +193,9 @@ const GameBoard: React.FC = () => {
           const percentage = Math.min((invested / cost) * 100, 100);
           return (
             <div key={resource} className="resource-progress">
-              <span>{resource}: </span>
+              <span style={{color: getResourceColor(getResourceTypeNumber(resource))}}>{resource}: </span>
               <div className="progress-bar">
-                <div className="progress" style={{ width: `${percentage}%` }}></div>
+                <div className="progress" style={{ width: `${percentage}%`, backgroundColor: getResourceColor(getResourceTypeNumber(resource)) }}></div>
               </div>
               <span>{invested}/{cost}</span>
             </div>
@@ -199,7 +209,7 @@ const GameBoard: React.FC = () => {
     return (
       <div className="recycling-bonus">
         <h5>Recycling Bonus:</h5>
-        <p>{getResourceTypeString(card.recyclingBonus)}</p>
+        <p style={{color: getResourceColor(card.recyclingBonus)}}>{getResourceTypeString(card.recyclingBonus)}</p>
       </div>
     );
   };
@@ -234,7 +244,7 @@ const GameBoard: React.FC = () => {
             <p>Resources:</p>
             <ul>
               {Object.entries(player.resources).map(([resource, amount]) => (
-                <li key={resource}>{resource}: {amount}</li>
+                <li key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>{resource}: {amount}</li>
               ))}
             </ul>
           </div>
@@ -301,7 +311,7 @@ const GameBoard: React.FC = () => {
         <p>Resources:</p>
         <ul>
           {Object.entries(game.currentPlayer.resources).map(([resource, amount]) => (
-            <li key={resource}>{resource}: {amount}</li>
+            <li key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>{resource}: {amount}</li>
           ))}
         </ul>
       </div>
