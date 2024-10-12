@@ -60,8 +60,12 @@ builder.Services.AddAuthentication(x =>
 });
 
 // Register services
-builder.Services.AddSingleton<GameService>();
 builder.Services.AddSingleton<AuthService>();
+builder.Services.AddScoped<GameService>();
+builder.Services.AddScoped<GameInitializationService>();
+builder.Services.AddScoped<GamePlayService>();
+builder.Services.AddScoped<GameScoringService>();
+builder.Services.AddScoped<CardGenerationService>();
 
 // Add CORS services
 builder.Services.AddCors(options =>
