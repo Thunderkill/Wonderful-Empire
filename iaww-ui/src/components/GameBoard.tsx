@@ -160,7 +160,7 @@ const GameBoard: React.FC = () => {
           <button
             key={resource}
             onClick={() => handleAddResource(card.id, resourceTypes.indexOf(resource))}
-            disabled={game.currentPlayer.resources[resource] < 1}
+            disabled={game.currentPlayer.resources[resource] < 1 || (card.investedResources[resource] || 0) >= cost}
           >
             Add {resource}
           </button>

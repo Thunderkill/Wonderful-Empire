@@ -188,19 +188,13 @@ namespace ItsAWonderfulWorldAPI.Controllers
                 var card = player.Empire.FirstOrDefault(c => c.Id == action.CardId) ?? 
                            player.ConstructionArea.FirstOrDefault(c => c.Id == action.CardId);
 
-                bool constructed = card.IsConstructed();
-                if (constructed)
-                {
-                    _gameService.MoveCardToEmpire(game, action.PlayerId, action.CardId);
-                }
-
                 var result = new PlanResult
                 {
                     Success = true,
                     ActionType = PlanActionType.AddResource,
                     CardName = card?.Name,
                     ResourceAdded = action.ResourceType,
-                    Constructed = constructed,
+                    Constructed = card.IsConstructed(),
                     UpdatedResources = player.Resources,
                     RemainingConstructionAreaCards = player.ConstructionArea.Count,
                     ConstructionAreaCards = player.ConstructionArea.Select(c => new CardStatus

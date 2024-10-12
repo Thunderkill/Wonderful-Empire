@@ -371,13 +371,12 @@ namespace ItsAWonderfulWorldAPI.Services
             if (!card.ConstructionCost.ContainsKey(resourceType))
                 throw new InvalidOperationException("This resource is not required for the card's construction.");
 
-            if (card.ConstructionCost[resourceType] == 0)
+            if (card.InvestedResources.GetValueOrDefault(resourceType, 0) >= card.ConstructionCost[resourceType])
                 throw new InvalidOperationException("This resource is already fully added to the card.");
 
             if (player.Resources[resourceType] == 0)
                 throw new InvalidOperationException("Player doesn't have this resource.");
 
-            card.ConstructionCost[resourceType]--;
             player.Resources[resourceType]--;
 
             // Update the InvestedResources
@@ -386,6 +385,12 @@ namespace ItsAWonderfulWorldAPI.Services
             card.InvestedResources[resourceType]++;
 
             _logger.LogInformation($"Added {resourceType} to card {card.Name} (ID: {cardId}) for player {player.Name} (ID: {playerId}) in game {game.Id}");
+
+            if (card.IsConstructed())
+            {
+                MoveCardToEmpire(game, playerId, cardId);
+                _logger.LogInformation($"Card {card.Name} (ID: {cardId}) constructed and moved to empire for player {player.Name} (ID: {playerId}) in game {game.Id}");
+            }
         }
 
         public void MoveCardToEmpire(Game game, Guid playerId, Guid cardId)
@@ -703,7 +708,9 @@ namespace ItsAWonderfulWorldAPI.Services
     {
         public static bool IsConstructed(this Card card)
         {
-            return card.ConstructionCost.All(cost => cost.Value == 0);
+            return card.ConstructionCost.All(cost => 
+                card.InvestedResources.GetValueOrDefault(cost.Key, 0) >= cost.Value
+            );
         }
     }
 }
