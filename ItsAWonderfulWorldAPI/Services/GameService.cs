@@ -417,14 +417,13 @@ namespace ItsAWonderfulWorldAPI.Services
 
             player.ConstructionArea.Remove(card);
 
-            foreach (var resource in card.RecyclingBonus)
-            {
-                player.Resources[resource.Key] += resource.Value;
-            }
+            // Update to handle single RecyclingBonus
+            player.Resources[card.RecyclingBonus]++;
 
             _logger.LogInformation($"Discarded card {card.Name} (ID: {cardId}) for player {player.Name} (ID: {playerId}) in game {game.Id}. Recycling bonus applied.");
 
-            return card.RecyclingBonus;
+            // Return the recycling bonus as a dictionary for consistency with the method signature
+            return new Dictionary<ResourceType, int> { { card.RecyclingBonus, 1 } };
         }
 
         private void CreateDevelopmentDeck(Game game)
@@ -603,7 +602,7 @@ namespace ItsAWonderfulWorldAPI.Services
 
             card.ConstructionCost = GenerateRandomResources(1, 3);
             card.Production = GenerateRandomResources(1, 2);
-            card.RecyclingBonus = GenerateRandomResources(1, 1);
+            card.RecyclingBonus = GenerateRandomRecyclingBonus();
             card.VictoryPoints = _random.Next(1, 6);
             card.ComboVictoryPoints = _random.Next(0, 3);
             card.GeneralVictoryPointsBonus = _random.Next(0, 2);
@@ -637,6 +636,12 @@ namespace ItsAWonderfulWorldAPI.Services
             }
 
             return resources;
+        }
+
+        private ResourceType GenerateRandomRecyclingBonus()
+        {
+            ResourceType[] validTypes = { ResourceType.Materials, ResourceType.Energy, ResourceType.Science, ResourceType.Gold, ResourceType.Exploration };
+            return validTypes[_random.Next(validTypes.Length)];
         }
 
         private void DealCards(Game game)

@@ -11,7 +11,7 @@ namespace ItsAWonderfulWorldAPI.Models
         public Dictionary<ResourceType, int> ConstructionCost { get; set; }
         public Dictionary<ResourceType, int> Production { get; set; }
         public int VictoryPoints { get; set; }
-        public Dictionary<ResourceType, int> RecyclingBonus { get; set; }
+        public ResourceType RecyclingBonus { get; set; }
         public SpecialAbility SpecialAbility { get; set; }
         public int ComboVictoryPoints { get; set; }
         public int GeneralVictoryPointsBonus { get; set; }
@@ -25,11 +25,20 @@ namespace ItsAWonderfulWorldAPI.Models
             Type = type;
             ConstructionCost = new Dictionary<ResourceType, int>();
             Production = new Dictionary<ResourceType, int>();
-            RecyclingBonus = new Dictionary<ResourceType, int>();
+            RecyclingBonus = ResourceType.Materials; // Default recycling bonus
             InvestedResources = new Dictionary<ResourceType, int>();
             ComboVictoryPoints = 0;
             GeneralVictoryPointsBonus = 0;
             FinancierVictoryPointsBonus = 0;
+        }
+
+        public void SetRecyclingBonus(ResourceType type)
+        {
+            if (type == ResourceType.Krystallium)
+            {
+                throw new ArgumentException("Recycling Bonus cannot be Krystallium");
+            }
+            RecyclingBonus = type;
         }
     }
 
