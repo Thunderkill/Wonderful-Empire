@@ -259,6 +259,22 @@ const GameBoard: React.FC = () => {
     );
   };
 
+  const renderEmpire = () => {
+    if (!game) return null;
+    return (
+      <div className="empire">
+        <h3>Your Empire (Constructed Buildings)</h3>
+        {game.currentPlayer.empire.map((card) => (
+          <div key={card.id} className="empire-card">
+            <h4>{card.name}</h4>
+            <p>Victory Points: {card.victoryPoints}</p>
+            {renderProduction(card)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const EndGameScreen: React.FC<{ game: GameStatus }> = ({ game }) => {
     const allPlayers = [game.currentPlayer, ...game.otherPlayers];
     const sortedPlayers = allPlayers.sort((a, b) => {
@@ -360,6 +376,8 @@ const GameBoard: React.FC = () => {
           ))}
         </ul>
       </div>
+      
+      {renderEmpire()}
       
       {game.gameState === 1 && game.currentPhase === 0 && (
         <div className="player-hand">
