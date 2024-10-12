@@ -20,15 +20,19 @@ const GameList: React.FC = () => {
 
   useEffect(() => {
     fetchGames();
+    const pollInterval = setInterval(fetchGames, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval); // Cleanup on unmount
   }, []);
 
   const fetchGames = async () => {
     try {
       const response = await api.get('/api/Game/list');
       setGames(response.data);
+      setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Failed to fetch games:', error);
-      setError('Failed to fetch games. Please try again later.');
+      setError('Failed to fetch games. Please try again.');
     }
   };
 
