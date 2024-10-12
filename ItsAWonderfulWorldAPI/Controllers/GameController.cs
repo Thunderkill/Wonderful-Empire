@@ -254,6 +254,54 @@ namespace ItsAWonderfulWorldAPI.Controllers
             }
         }
 
+        [HttpPost("{gameId}/moveToConstruction")]
+        public ActionResult<PlanResult> MoveToConstruction(Guid gameId, [FromBody] MoveToConstructionAction action)
+        {
+            var game = _games.FirstOrDefault(g => g.Id == gameId);
+            if (game == null)
+                return NotFound("Game not found");
+
+            if (game.State != GameState.InProgress)
+                return BadRequest("The game is not in progress");
+
+            try
+            {
+                _gameService.MoveCardToConstructionArea(game, action.PlayerId, action.CardId);
+                
+                var player = game.Players.FirstOrDefault(p => p.Id == action.PlayerId);
+                var card = player.ConstructionArea.FirstOrDefault(c => c.Id == action.CardId);
+
+                var result = new PlanResult
+                {
+                    Success = true,
+                    ActionType = PlanActionType.MoveToConstruction,
+                    CardName = card?.Name,
+                    RemainingDraftingAreaCards = player.DraftingArea.Count,
+                    RemainingConstructionAreaCards = player.ConstructionArea.Count,
+                    ConstructionAreaCards = player.ConstructionArea.Select(c => new CardStatus
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        ConstructionCost = c.ConstructionCost,
+                        InvestedResources = c.InvestedResources
+                    }).ToList(),
+                    DraftingAreaCards = player.DraftingArea.Select(c => new CardStatus
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        ConstructionCost = c.ConstructionCost,
+                        InvestedResources = c.InvestedResources
+                    }).ToList()
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPost("{gameId}/endplanning")]
         public ActionResult<Game> EndPlanningPhase(Guid gameId)
         {
@@ -355,7 +403,8 @@ namespace ItsAWonderfulWorldAPI.Controllers
     public enum PlanActionType
     {
         AddResource,
-        Discard
+        Discard,
+        MoveToConstruction
     }
 
     public class AddResourceAction
@@ -366,6 +415,12 @@ namespace ItsAWonderfulWorldAPI.Controllers
     }
 
     public class DiscardAction
+    {
+        public Guid PlayerId { get; set; }
+        public Guid CardId { get; set; }
+    }
+
+    public class MoveToConstructionAction
     {
         public Guid PlayerId { get; set; }
         public Guid CardId { get; set; }
@@ -403,7 +458,9 @@ namespace ItsAWonderfulWorldAPI.Controllers
         public Dictionary<ResourceType, int> RecyclingBonus { get; set; }
         public Dictionary<ResourceType, int> UpdatedResources { get; set; }
         public int RemainingConstructionAreaCards { get; set; }
+        public int RemainingDraftingAreaCards { get; set; }
         public List<CardStatus> ConstructionAreaCards { get; set; }
+        public List<CardStatus> DraftingAreaCards { get; set; }
     }
 
     public class CardStatus

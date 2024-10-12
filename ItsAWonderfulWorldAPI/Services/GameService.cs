@@ -123,7 +123,7 @@ namespace ItsAWonderfulWorldAPI.Services
             _logger.LogInformation($"Player {player.Name} (ID: {playerId}) drafting card {card.Name} (ID: {cardId}) in game {game.Id}");
 
             player.Hand.Remove(card);
-            player.ConstructionArea.Add(card);
+            player.DraftingArea.Add(card);  // Move to drafting area instead of construction area
             player.HasDraftedThisRound = true;
 
             game.PlayersDrafted.Add(playerId);
@@ -140,45 +140,6 @@ namespace ItsAWonderfulWorldAPI.Services
             _logger.LogInformation($"Card drafted successfully in game {game.Id}");
         }
 
-        public void PlanCard(Game game, Guid playerId, Guid cardId, bool construct)
-        {
-            if (game == null)
-                throw new ArgumentNullException(nameof(game));
-
-            if (game.State != GameState.InProgress)
-                throw new InvalidOperationException("The game is not in progress.");
-
-            if (game.CurrentPhase != GamePhase.Planning)
-                throw new InvalidOperationException("It's not the planning phase.");
-
-            var player = game.Players.FirstOrDefault(p => p.Id == playerId)
-                ?? throw new ArgumentException("Player not found.", nameof(playerId));
-
-            var card = player.ConstructionArea.FirstOrDefault(c => c.Id == cardId)
-                ?? throw new ArgumentException("Card not found in player's construction area.", nameof(cardId));
-
-            _logger.LogInformation($"Player {player.Name} (ID: {playerId}) planning card {card.Name} (ID: {cardId}) in game {game.Id}. Construct: {construct}");
-
-            if (construct)
-            {
-                if (card.IsConstructed())
-                {
-                    MoveCardToEmpire(game, playerId, cardId);
-                    _logger.LogInformation($"Card {card.Name} (ID: {cardId}) constructed successfully in game {game.Id}");
-                }
-                else
-                {
-                    _logger.LogWarning($"Not enough resources to construct card {card.Name} (ID: {cardId}) in game {game.Id}");
-                    throw new InvalidOperationException("Not enough resources to construct this card.");
-                }
-            }
-            else
-            {
-                DiscardCard(game, playerId, cardId);
-                _logger.LogInformation($"Card {card.Name} (ID: {cardId}) discarded and recycling bonus received in game {game.Id}");
-            }
-        }
-
         public void SetPlayerReady(Game game, Guid playerId)
         {
             if (game == null)
@@ -192,6 +153,9 @@ namespace ItsAWonderfulWorldAPI.Services
 
             var player = game.Players.FirstOrDefault(p => p.Id == playerId)
                 ?? throw new ArgumentException("Player not found.", nameof(playerId));
+
+            if (player.DraftingArea.Any())
+                throw new InvalidOperationException("Player's drafting area is not empty.");
 
             player.IsReady = true;
             _logger.LogInformation($"Player {player.Name} (ID: {playerId}) is ready in game {game.Id}");
@@ -330,6 +294,7 @@ namespace ItsAWonderfulWorldAPI.Services
                     Resources = currentPlayer.Resources,
                     Characters = currentPlayer.Characters,
                     Hand = currentPlayer.Hand,
+                    DraftingArea = currentPlayer.DraftingArea,
                     ConstructionArea = currentPlayer.ConstructionArea,
                     Empire = currentPlayer.Empire,
                     IsReady = currentPlayer.IsReady,
@@ -342,6 +307,7 @@ namespace ItsAWonderfulWorldAPI.Services
                     Resources = p.Resources,
                     Characters = p.Characters,
                     HandCount = p.Hand.Count,
+                    DraftingArea = p.DraftingArea,
                     ConstructionArea = p.ConstructionArea,
                     Empire = p.Empire,
                     IsReady = p.IsReady,
@@ -412,10 +378,10 @@ namespace ItsAWonderfulWorldAPI.Services
             var player = game.Players.FirstOrDefault(p => p.Id == playerId)
                 ?? throw new ArgumentException("Player not found.", nameof(playerId));
 
-            var card = player.ConstructionArea.FirstOrDefault(c => c.Id == cardId)
-                ?? throw new ArgumentException("Card not found in player's construction area.", nameof(cardId));
+            var card = player.DraftingArea.FirstOrDefault(c => c.Id == cardId)
+                ?? throw new ArgumentException("Card not found in player's drafting area.", nameof(cardId));
 
-            player.ConstructionArea.Remove(card);
+            player.DraftingArea.Remove(card);
 
             // Update to handle single RecyclingBonus
             player.Resources[card.RecyclingBonus]++;
@@ -424,6 +390,29 @@ namespace ItsAWonderfulWorldAPI.Services
 
             // Return the recycling bonus as a dictionary for consistency with the method signature
             return new Dictionary<ResourceType, int> { { card.RecyclingBonus, 1 } };
+        }
+
+        public void MoveCardToConstructionArea(Game game, Guid playerId, Guid cardId)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            if (game.State != GameState.InProgress)
+                throw new InvalidOperationException("The game is not in progress.");
+
+            if (game.CurrentPhase != GamePhase.Planning)
+                throw new InvalidOperationException("It's not the planning phase.");
+
+            var player = game.Players.FirstOrDefault(p => p.Id == playerId)
+                ?? throw new ArgumentException("Player not found.", nameof(playerId));
+
+            var card = player.DraftingArea.FirstOrDefault(c => c.Id == cardId)
+                ?? throw new ArgumentException("Card not found in player's drafting area.", nameof(cardId));
+
+            player.DraftingArea.Remove(card);
+            player.ConstructionArea.Add(card);
+
+            _logger.LogInformation($"Moved card {card.Name} (ID: {cardId}) from drafting area to construction area for player {player.Name} (ID: {playerId}) in game {game.Id}");
         }
 
         private void CreateDevelopmentDeck(Game game)
@@ -680,6 +669,11 @@ namespace ItsAWonderfulWorldAPI.Services
 
             _logger.LogInformation($"Cards passed successfully in game {game.Id}");
         }
+
+        private bool AreAllDraftingAreasEmpty(Game game)
+        {
+            return game.Players.All(p => !p.DraftingArea.Any());
+        }
     }
 
     public class GameStatus
@@ -703,6 +697,7 @@ namespace ItsAWonderfulWorldAPI.Services
         public Dictionary<CharacterType, int> Characters { get; set; }
         public List<Card> Hand { get; set; }
         public int HandCount { get; set; }
+        public List<Card> DraftingArea { get; set; }
         public List<Card> ConstructionArea { get; set; }
         public List<Card> Empire { get; set; }
         public bool IsReady { get; set; }

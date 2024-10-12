@@ -8,6 +8,7 @@ namespace ItsAWonderfulWorldAPI.Models
         public Guid Id { get; set; }
         public string Name { get; set; }
         public List<Card> Hand { get; set; }
+        public List<Card> DraftingArea { get; set; }
         public List<Card> ConstructionArea { get; set; }
         public List<Card> Empire { get; set; }
         public Dictionary<ResourceType, int> Resources { get; set; }
@@ -20,6 +21,7 @@ namespace ItsAWonderfulWorldAPI.Models
             Id = Guid.NewGuid();
             Name = name;
             Hand = new List<Card>();
+            DraftingArea = new List<Card>();
             ConstructionArea = new List<Card>();
             Empire = new List<Card>();
             Resources = new Dictionary<ResourceType, int>();

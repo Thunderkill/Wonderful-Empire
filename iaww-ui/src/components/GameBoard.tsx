@@ -20,6 +20,7 @@ interface PlayerStatus {
   resources: { [key: string]: number };
   hand: Card[];
   handCount: number;
+  draftingArea: Card[];
   constructionArea: Card[];
   empire: Card[];
   isReady: boolean;
@@ -133,6 +134,24 @@ const GameBoard: React.FC = () => {
     } catch (error) {
       console.error('Failed to discard card:', error);
       setError('Failed to discard card. Please try again.');
+    }
+  };
+
+  const handleMoveToConstruction = async (cardId: string) => {
+    try {
+      const response = await api.post(`/api/Game/${gameId}/moveToConstruction`, {
+        playerId: game?.currentPlayer.id,
+        cardId: cardId
+      });
+      
+      if (response.data.success) {
+        fetchGameStatus();
+      } else {
+        setError('Failed to move card to construction area. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to move card to construction area:', error);
+      setError('Failed to move card to construction area. Please try again.');
     }
   };
 
@@ -339,6 +358,20 @@ const GameBoard: React.FC = () => {
       
       {game.gameState === 1 && game.currentPhase === 1 && (
         <div className="player-actions">
+          <h3>Your Drafting Area</h3>
+          <div className="drafting-area">
+            {game.currentPlayer.draftingArea.map((card) => (
+              <div key={card.id} className="card">
+                <h4>{card.name}</h4>
+                <p>Type: {getCardTypeString(card.type)}</p>
+                <p>Victory Points: {card.victoryPoints}</p>
+                {renderRecyclingBonus(card)}
+                <button onClick={() => handleMoveToConstruction(card.id)}>Move to Construction</button>
+                <button onClick={() => handleDiscard(card.id)}>Discard</button>
+              </div>
+            ))}
+          </div>
+          
           <h3>Your Construction Area</h3>
           <div className="construction-area">
             {game.currentPlayer.constructionArea.map((card) => (
@@ -349,13 +382,15 @@ const GameBoard: React.FC = () => {
                 {renderRecyclingBonus(card)}
                 {renderInvestedResources(card)}
                 {renderResourceButtons(card)}
-                <button onClick={() => handleDiscard(card.id)}>Discard</button>
               </div>
             ))}
           </div>
-          <button onClick={handleReady} disabled={game.currentPlayer.isReady}>
+          <button onClick={handleReady} disabled={game.currentPlayer.isReady || game.currentPlayer.draftingArea.length > 0}>
             {game.currentPlayer.isReady ? "Ready" : "Set Ready"}
           </button>
+          {game.currentPlayer.draftingArea.length > 0 && (
+            <p>You must move all cards from your drafting area before setting ready.</p>
+          )}
         </div>
       )}
       
@@ -365,6 +400,7 @@ const GameBoard: React.FC = () => {
           <div key={player.id} className="player">
             <h4>{player.name}</h4>
             <p>Hand Count: {player.handCount}</p>
+            <p>Drafting Area Count: {player.draftingArea.length}</p>
             <p>Construction Area Count: {player.constructionArea.length}</p>
             <p>Empire Count: {player.empire.length}</p>
             <p>Ready: {player.isReady ? "Yes" : "No"}</p>
