@@ -246,6 +246,19 @@ const GameBoard: React.FC = () => {
     );
   };
 
+  const renderProduction = (card: Card) => {
+    return (
+      <div className="production">
+        <h5>Production:</h5>
+        {Object.entries(card.production).map(([resource, amount]) => (
+          <p key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>
+            {resource}: {amount}
+          </p>
+        ))}
+      </div>
+    );
+  };
+
   const EndGameScreen: React.FC<{ game: GameStatus }> = ({ game }) => {
     const allPlayers = [game.currentPlayer, ...game.otherPlayers];
     const sortedPlayers = allPlayers.sort((a, b) => {
@@ -362,6 +375,7 @@ const GameBoard: React.FC = () => {
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
                 {renderConstructionRequirements(card)}
+                {renderProduction(card)}
                 {renderRecyclingBonus(card)}
               </div>
             ))}
@@ -380,6 +394,7 @@ const GameBoard: React.FC = () => {
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
                 {renderConstructionRequirements(card)}
+                {renderProduction(card)}
                 {renderRecyclingBonus(card)}
                 <button onClick={() => handleMoveToConstruction(card.id)}>Move to Construction</button>
                 <button onClick={() => handleDiscard(card.id)}>Discard</button>
@@ -394,6 +409,8 @@ const GameBoard: React.FC = () => {
                 <h4>{card.name}</h4>
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
+                {renderConstructionRequirements(card)}
+                {renderProduction(card)}
                 {renderRecyclingBonus(card)}
                 {renderInvestedResources(card)}
                 {renderResourceButtons(card)}
