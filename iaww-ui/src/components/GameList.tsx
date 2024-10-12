@@ -20,7 +20,7 @@ const GameList: React.FC = () => {
 
   useEffect(() => {
     fetchGames();
-    const pollInterval = setInterval(fetchGames, 5000); // Poll every 5 seconds
+    const pollInterval = setInterval(fetchGames, 500); // Poll every 5 seconds
 
     return () => clearInterval(pollInterval); // Cleanup on unmount
   }, []);

@@ -18,7 +18,7 @@ const GameBoard: React.FC = () => {
 
   useEffect(() => {
     fetchGameStatus();
-    const intervalId = setInterval(fetchGameStatus, 5000); // Poll every 5 seconds
+    const intervalId = setInterval(fetchGameStatus, 500); // Poll every 5 seconds
     return () => clearInterval(intervalId);
   }, [gameId]);
 
