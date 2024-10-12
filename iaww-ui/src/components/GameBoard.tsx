@@ -233,6 +233,19 @@ const GameBoard: React.FC = () => {
     );
   };
 
+  const renderConstructionRequirements = (card: Card) => {
+    return (
+      <div className="construction-requirements">
+        <h5>Construction Requirements:</h5>
+        {Object.entries(card.constructionCost).map(([resource, cost]) => (
+          <p key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>
+            {resource}: {cost}
+          </p>
+        ))}
+      </div>
+    );
+  };
+
   const EndGameScreen: React.FC<{ game: GameStatus }> = ({ game }) => {
     const allPlayers = [game.currentPlayer, ...game.otherPlayers];
     const sortedPlayers = allPlayers.sort((a, b) => {
@@ -348,6 +361,7 @@ const GameBoard: React.FC = () => {
                 <h4>{card.name}</h4>
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
+                {renderConstructionRequirements(card)}
                 {renderRecyclingBonus(card)}
               </div>
             ))}
@@ -365,6 +379,7 @@ const GameBoard: React.FC = () => {
                 <h4>{card.name}</h4>
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
+                {renderConstructionRequirements(card)}
                 {renderRecyclingBonus(card)}
                 <button onClick={() => handleMoveToConstruction(card.id)}>Move to Construction</button>
                 <button onClick={() => handleDiscard(card.id)}>Discard</button>
