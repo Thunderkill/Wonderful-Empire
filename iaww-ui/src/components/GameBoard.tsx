@@ -259,16 +259,59 @@ const GameBoard: React.FC = () => {
     );
   };
 
-  const renderEmpire = () => {
-    if (!game) return null;
+  const renderEmpire = (player: PlayerStatus) => {
     return (
       <div className="empire">
-        <h3>Your Empire (Constructed Buildings)</h3>
-        {game.currentPlayer.empire.map((card) => (
+        <h3>{player.name}'s Empire (Constructed Buildings)</h3>
+        {player.empire.map((card) => (
           <div key={card.id} className="empire-card">
             <h4>{card.name}</h4>
             <p>Victory Points: {card.victoryPoints}</p>
             {renderProduction(card)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderConstructionArea = (player: PlayerStatus) => {
+    return (
+      <div className="construction-area">
+        <h3>{player.name}'s Construction Area</h3>
+        {player.constructionArea.map((card) => (
+          <div key={card.id} className="card">
+            <h4>{card.name}</h4>
+            <p>Type: {getCardTypeString(card.type)}</p>
+            <p>Victory Points: {card.victoryPoints}</p>
+            {renderConstructionRequirements(card)}
+            {renderProduction(card)}
+            {renderRecyclingBonus(card)}
+            {renderInvestedResources(card)}
+            {player.id === game?.currentPlayer.id && renderResourceButtons(card)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderDraftingArea = (player: PlayerStatus) => {
+    return (
+      <div className="drafting-area">
+        <h3>{player.name}'s Drafting Area</h3>
+        {player.draftingArea.map((card) => (
+          <div key={card.id} className="card">
+            <h4>{card.name}</h4>
+            <p>Type: {getCardTypeString(card.type)}</p>
+            <p>Victory Points: {card.victoryPoints}</p>
+            {renderConstructionRequirements(card)}
+            {renderProduction(card)}
+            {renderRecyclingBonus(card)}
+            {player.id === game?.currentPlayer.id && (
+              <div className="card-actions">
+                <button onClick={() => handleMoveToConstruction(card.id)}>Move to Construction</button>
+                <button onClick={() => handleDiscard(card.id)}>Discard</button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -377,7 +420,7 @@ const GameBoard: React.FC = () => {
         </ul>
       </div>
       
-      {renderEmpire()}
+      {renderEmpire(game.currentPlayer)}
       
       {game.gameState === 1 && game.currentPhase === 0 && (
         <div className="player-hand">
@@ -404,37 +447,10 @@ const GameBoard: React.FC = () => {
       
       {game.gameState === 1 && game.currentPhase === 1 && (
         <div className="player-actions">
-          <h3>Your Drafting Area</h3>
-          <div className="drafting-area">
-            {game.currentPlayer.draftingArea.map((card) => (
-              <div key={card.id} className="card">
-                <h4>{card.name}</h4>
-                <p>Type: {getCardTypeString(card.type)}</p>
-                <p>Victory Points: {card.victoryPoints}</p>
-                {renderConstructionRequirements(card)}
-                {renderProduction(card)}
-                {renderRecyclingBonus(card)}
-                <button onClick={() => handleMoveToConstruction(card.id)}>Move to Construction</button>
-                <button onClick={() => handleDiscard(card.id)}>Discard</button>
-              </div>
-            ))}
-          </div>
+          {renderDraftingArea(game.currentPlayer)}
           
-          <h3>Your Construction Area</h3>
-          <div className="construction-area">
-            {game.currentPlayer.constructionArea.map((card) => (
-              <div key={card.id} className="card">
-                <h4>{card.name}</h4>
-                <p>Type: {getCardTypeString(card.type)}</p>
-                <p>Victory Points: {card.victoryPoints}</p>
-                {renderConstructionRequirements(card)}
-                {renderProduction(card)}
-                {renderRecyclingBonus(card)}
-                {renderInvestedResources(card)}
-                {renderResourceButtons(card)}
-              </div>
-            ))}
-          </div>
+          {renderConstructionArea(game.currentPlayer)}
+          
           <button onClick={handleReady} disabled={game.currentPlayer.isReady || game.currentPlayer.draftingArea.length > 0}>
             {game.currentPlayer.isReady ? "Ready" : "Set Ready"}
           </button>
@@ -450,11 +466,11 @@ const GameBoard: React.FC = () => {
           <div key={player.id} className="player">
             <h4>{player.name}</h4>
             <p>Hand Count: {player.handCount}</p>
-            <p>Drafting Area Count: {player.draftingArea.length}</p>
-            <p>Construction Area Count: {player.constructionArea.length}</p>
-            <p>Empire Count: {player.empire.length}</p>
             <p>Ready: {player.isReady ? "Yes" : "No"}</p>
             <p>Has Drafted: {player.hasDraftedThisRound ? "Yes" : "No"}</p>
+            {renderDraftingArea(player)}
+            {renderConstructionArea(player)}
+            {renderEmpire(player)}
           </div>
         ))}
       </div>
