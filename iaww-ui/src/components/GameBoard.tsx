@@ -9,7 +9,7 @@ interface Card {
   constructionCost: { [key: string]: number };
   production: { [key: string]: number };
   victoryPoints: number;
-  recyclingBonus: { [key: string]: number };
+  recyclingBonus: number;
   specialAbility: number;
   investedResources: { [key: string]: number };
 }
@@ -151,6 +151,11 @@ const GameBoard: React.FC = () => {
     return types[type] || 'Unknown';
   };
 
+  const getResourceTypeString = (type: number): string => {
+    const types = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration', 'Krystallium'];
+    return types[type] || 'Unknown';
+  };
+
   const renderResourceButtons = (card: Card) => {
     if (!game) return null;
     const resourceTypes = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration', 'Krystallium'];
@@ -186,6 +191,15 @@ const GameBoard: React.FC = () => {
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  const renderRecyclingBonus = (card: Card) => {
+    return (
+      <div className="recycling-bonus">
+        <h5>Recycling Bonus:</h5>
+        <p>{getResourceTypeString(card.recyclingBonus)}</p>
       </div>
     );
   };
@@ -305,6 +319,7 @@ const GameBoard: React.FC = () => {
                 <h4>{card.name}</h4>
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
+                {renderRecyclingBonus(card)}
               </div>
             ))}
           </div>
@@ -321,6 +336,7 @@ const GameBoard: React.FC = () => {
                 <h4>{card.name}</h4>
                 <p>Type: {getCardTypeString(card.type)}</p>
                 <p>Victory Points: {card.victoryPoints}</p>
+                {renderRecyclingBonus(card)}
                 {renderInvestedResources(card)}
                 {renderResourceButtons(card)}
                 <button onClick={() => handleDiscard(card.id)}>Discard</button>
