@@ -128,4 +128,18 @@
   margin-bottom: 10px;
 }
 
+/* New styles for the app title */
+.app-title {
+  cursor: pointer;
+  transition: color 0.3s ease;
+  text-align: center;
+  padding: 20px 0;
+  font-size: 2.5em;
+  color: #333;
+}
+
+.app-title:hover {
+  color: #008CBA;
+}
+
 /* Add any other existing styles here */
