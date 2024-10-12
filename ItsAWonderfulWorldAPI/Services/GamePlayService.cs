@@ -66,21 +66,32 @@ namespace ItsAWonderfulWorldAPI.Services
             if (game.State != GameState.InProgress)
                 throw new InvalidOperationException("The game is not in progress.");
 
-            if (game.CurrentPhase != GamePhase.Planning)
-                throw new InvalidOperationException("It's not the planning phase.");
-
             var player = game.Players.FirstOrDefault(p => p.Id == playerId)
                 ?? throw new ArgumentException("Player not found.", nameof(playerId));
 
-            if (player.DraftingArea.Any())
-                throw new InvalidOperationException("Player's drafting area is not empty.");
+            if (game.CurrentPhase == GamePhase.Planning)
+            {
+                if (player.DraftingArea.Any())
+                    throw new InvalidOperationException("Player's drafting area is not empty.");
+            }
+            else if (game.CurrentPhase != GamePhase.Production)
+            {
+                throw new InvalidOperationException("It's not a phase where players can be ready.");
+            }
 
             player.IsReady = true;
             _logger.LogInformation($"Player {player.Name} (ID: {playerId}) is ready in game {game.Id}");
 
             if (game.AreAllPlayersReady())
             {
-                EndPlanningPhase(game);
+                if (game.CurrentPhase == GamePhase.Planning)
+                {
+                    EndPlanningPhase(game);
+                }
+                else if (game.CurrentPhase == GamePhase.Production)
+                {
+                    MoveToNextProductionStep(game);
+                }
             }
         }
 
@@ -119,22 +130,40 @@ namespace ItsAWonderfulWorldAPI.Services
 
             _logger.LogInformation($"Starting production phase for game {game.Id}");
 
-            foreach (var player in game.Players)
+            // Initialize the production step
+            game.CurrentProductionStep = ResourceType.Materials;
+
+            // Produce the first resource type
+            ProduceResourceStep(game);
+        }
+
+        public void ProduceResourceStep(Game game)
+        {
+            if (game.CurrentProductionStep == null)
             {
-                ProduceResourcesForPlayer(player);
-                player.IsReady = false; // Reset ready state for next round
-                _logger.LogInformation($"Production completed for player {player.Name} (ID: {player.Id}) in game {game.Id}");
+                throw new InvalidOperationException("Current production step is not set.");
             }
 
-            game.CurrentRound++;
+            foreach (var player in game.Players)
+            {
+                ProduceResourceForPlayer(player, game.CurrentProductionStep.Value);
+                player.IsReady = false; // Reset ready state for the next step
+            }
 
-            game.CurrentDraftDirection = game.CurrentDraftDirection == DraftDirection.Clockwise
-                ? DraftDirection.Counterclockwise
-                : DraftDirection.Clockwise;
+            _logger.LogInformation($"Production step completed for {game.CurrentProductionStep} in game {game.Id}");
+        }
 
-            _logger.LogInformation($"Production phase completed for game {game.Id}. Current round: {game.CurrentRound}. New draft direction: {game.CurrentDraftDirection}");
+        private void ProduceResourceForPlayer(Player player, ResourceType resourceType)
+        {
+            int production = player.Empire.Sum(card =>
+            {
+                int baseProduction = card.Production.GetValueOrDefault(resourceType, 0);
+                return card.SpecialAbility == SpecialAbility.DoubleProduction ? baseProduction * 2 : baseProduction;
+            });
 
-            CheckGameOver(game);
+            player.Resources[resourceType] += production;
+
+            _logger.LogInformation($"Player {player.Name} (ID: {player.Id}) produced {production} {resourceType}");
         }
 
         public void AddResourceToCard(Game game, Guid playerId, Guid cardId, ResourceType resourceType)
@@ -281,42 +310,56 @@ namespace ItsAWonderfulWorldAPI.Services
             }
         }
 
-        private void ProduceResourcesForPlayer(Player player)
+        private void MoveToNextProductionStep(Game game)
         {
-            foreach (var card in player.Empire)
-            {
-                foreach (var production in card.Production)
-                {
-                    int productionValue = production.Value;
-                    if (card.SpecialAbility == SpecialAbility.DoubleProduction)
-                    {
-                        productionValue *= 2;
-                    }
-                    player.Resources[production.Key] += productionValue;
-                }
+            ResourceType[] productionOrder = { ResourceType.Materials, ResourceType.Energy, ResourceType.Science, ResourceType.Gold, ResourceType.Exploration };
+            int currentIndex = game.CurrentProductionStep.HasValue ? Array.IndexOf(productionOrder, game.CurrentProductionStep.Value) : -1;
 
-                ApplySpecialAbility(player, card);
+            if (currentIndex < productionOrder.Length - 1)
+            {
+                // Move to the next production step
+                game.CurrentProductionStep = productionOrder[currentIndex + 1];
+                ProduceResourceStep(game);
             }
-
-            foreach (var card in player.Empire.Where(c => c.SpecialAbility == SpecialAbility.VictoryPointBonus))
+            else
             {
-                card.VictoryPoints += player.Resources.Values.Sum() / 5;
+                // Production phase is complete
+                FinishProductionPhase(game);
             }
         }
 
-        private void ApplySpecialAbility(Player player, Card card)
+        private void FinishProductionPhase(Game game)
         {
-            switch (card.SpecialAbility)
+            foreach (var player in game.Players)
             {
-                case SpecialAbility.ResourceConversion:
-                    ConvertResources(player);
-                    break;
-                case SpecialAbility.ExtraCardDraw:
-                    // This is handled in the DealCards method
-                    break;
-                case SpecialAbility.ReducedConstructionCost:
-                    // This is handled in the PlanCard method
-                    break;
+                // Apply special abilities that depend on total resources
+                foreach (var card in player.Empire.Where(c => c.SpecialAbility == SpecialAbility.VictoryPointBonus))
+                {
+                    card.VictoryPoints += player.Resources.Values.Sum() / 5;
+                }
+
+                // Apply resource conversion special ability
+                ApplyResourceConversion(player);
+
+                player.IsReady = false; // Reset ready state for next round
+            }
+
+            game.CurrentRound++;
+
+            game.CurrentDraftDirection = game.CurrentDraftDirection == DraftDirection.Clockwise
+                ? DraftDirection.Counterclockwise
+                : DraftDirection.Clockwise;
+
+            _logger.LogInformation($"Production phase completed for game {game.Id}. Current round: {game.CurrentRound}. New draft direction: {game.CurrentDraftDirection}");
+
+            CheckGameOver(game);
+        }
+
+        private void ApplyResourceConversion(Player player)
+        {
+            foreach (var card in player.Empire.Where(c => c.SpecialAbility == SpecialAbility.ResourceConversion))
+            {
+                ConvertResources(player);
             }
         }
 
