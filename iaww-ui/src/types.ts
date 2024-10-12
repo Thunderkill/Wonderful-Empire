@@ -21,6 +21,7 @@ export interface PlayerStatus {
   empire: Card[];
   isReady: boolean;
   hasDraftedThisRound: boolean;
+  discardedResourcePool: number;
 }
 
 export interface GameStatus {

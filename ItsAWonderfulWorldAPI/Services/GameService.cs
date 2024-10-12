@@ -180,6 +180,29 @@ namespace ItsAWonderfulWorldAPI.Services
             if (!game.AreAllPlayersReady())
                 throw new InvalidOperationException("Not all players are ready.");
 
+            // Convert excess non-krystallium resources to discarded resource pool
+            foreach (var player in game.Players)
+            {
+                foreach (var resource in player.Resources)
+                {
+                    if (resource.Key != ResourceType.Krystallium)
+                    {
+                        player.DiscardedResourcePool += resource.Value;
+                        player.Resources[resource.Key] = 0;
+                    }
+                }
+            }
+
+            // Convert discarded resource pool to krystallium
+            foreach (var player in game.Players)
+            {
+                int krystalliumGained = player.DiscardedResourcePool / 5;
+                player.Resources[ResourceType.Krystallium] += krystalliumGained;
+                player.DiscardedResourcePool %= 5;
+                
+                _logger.LogInformation($"Player {player.Name} (ID: {player.Id}) converted {krystalliumGained * 5} discarded resources to {krystalliumGained} Krystallium. Remaining in discarded pool: {player.DiscardedResourcePool}");
+            }
+
             game.CurrentPhase = GamePhase.Production;
             _logger.LogInformation($"Planning phase ended for game {game.Id}. Moving to Production phase.");
 
@@ -298,7 +321,8 @@ namespace ItsAWonderfulWorldAPI.Services
                     ConstructionArea = currentPlayer.ConstructionArea,
                     Empire = currentPlayer.Empire,
                     IsReady = currentPlayer.IsReady,
-                    HasDraftedThisRound = currentPlayer.HasDraftedThisRound
+                    HasDraftedThisRound = currentPlayer.HasDraftedThisRound,
+                    DiscardedResourcePool = currentPlayer.DiscardedResourcePool
                 },
                 OtherPlayers = otherPlayers.Select(p => new PlayerStatus
                 {
@@ -311,7 +335,8 @@ namespace ItsAWonderfulWorldAPI.Services
                     ConstructionArea = p.ConstructionArea,
                     Empire = p.Empire,
                     IsReady = p.IsReady,
-                    HasDraftedThisRound = p.HasDraftedThisRound
+                    HasDraftedThisRound = p.HasDraftedThisRound,
+                    DiscardedResourcePool = p.DiscardedResourcePool
                 }).ToList()
             };
 
@@ -702,6 +727,7 @@ namespace ItsAWonderfulWorldAPI.Services
         public List<Card> Empire { get; set; }
         public bool IsReady { get; set; }
         public bool HasDraftedThisRound { get; set; }
+        public int DiscardedResourcePool { get; set; }
     }
 
     public static class CardExtensions

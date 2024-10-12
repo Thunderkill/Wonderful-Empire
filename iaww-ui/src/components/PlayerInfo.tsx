@@ -18,6 +18,7 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ player }) => {
           </li>
         ))}
       </ul>
+      <p>Discarded Resource Pool: {player.discardedResourcePool}</p>
       <p>Hand Count: {player.handCount}</p>
       <p>Ready: {player.isReady ? "Yes" : "No"}</p>
       <p>Has Drafted: {player.hasDraftedThisRound ? "Yes" : "No"}</p>

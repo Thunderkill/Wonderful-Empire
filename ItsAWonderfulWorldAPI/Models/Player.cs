@@ -15,6 +15,7 @@ namespace ItsAWonderfulWorldAPI.Models
         public Dictionary<CharacterType, int> Characters { get; set; }
         public bool IsReady { get; set; }
         public bool HasDraftedThisRound { get; set; }
+        public int DiscardedResourcePool { get; set; }
 
         public Player(string name)
         {
@@ -36,6 +37,7 @@ namespace ItsAWonderfulWorldAPI.Models
             }
             IsReady = false;
             HasDraftedThisRound = false;
+            DiscardedResourcePool = 0;
         }
     }
 }
