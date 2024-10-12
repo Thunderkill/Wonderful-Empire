@@ -1,43 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-
-interface Card {
-  id: string;
-  name: string;
-  type: number;
-  constructionCost: { [key: string]: number };
-  production: { [key: string]: number };
-  victoryPoints: number;
-  recyclingBonus: number;
-  specialAbility: number;
-  investedResources: { [key: string]: number };
-}
-
-interface PlayerStatus {
-  id: string;
-  name: string;
-  resources: { [key: string]: number };
-  hand: Card[];
-  handCount: number;
-  draftingArea: Card[];
-  constructionArea: Card[];
-  empire: Card[];
-  isReady: boolean;
-  hasDraftedThisRound: boolean;
-}
-
-interface GameStatus {
-  gameId: string;
-  gameState: number;
-  currentPhase: number;
-  currentRound: number;
-  host: PlayerStatus;
-  currentPlayer: PlayerStatus;
-  otherPlayers: PlayerStatus[];
-  winnerId?: string;
-  finalScores?: { [playerId: string]: number };
-}
+import { GameStatus } from '../types';
+import GameLobby from './GameLobby';
+import EndGameScreen from './EndGameScreen';
+import PlayerInfo from './PlayerInfo';
+import Empire from './Empire';
+import DraftingArea from './DraftingArea';
+import ConstructionArea from './ConstructionArea';
+import CardDetails from './CardDetails';
 
 const GameBoard: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -165,238 +136,16 @@ const GameBoard: React.FC = () => {
     }
   };
 
-  const getCardTypeString = (type: number): string => {
-    const types = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration'];
-    return types[type] || 'Unknown';
-  };
-
-  const getResourceTypeString = (type: number): string => {
-    const types = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration', 'Krystallium'];
-    return types[type] || 'Unknown';
-  };
-
-  const getResourceColor = (type: number): string => {
-    const colors = ['#ada594', '#343433', '#59a430', '#c4b822', '#3189c3', '#a71111'];
-    return colors[type] || '#000000';
-  };
-
-  const getResourceTypeNumber = (resourceName: string): number => {
-    const resourceTypes = ['Materials', 'Energy', 'Science', 'Gold', 'Exploration', 'Krystallium'];
-    return resourceTypes.indexOf(resourceName);
-  };
-
-  const renderResourceButtons = (card: Card) => {
-    if (!game) return null;
-    return (
-      <div className="resource-buttons">
-        {Object.entries(card.constructionCost).map(([resource, cost]) => (
-          <button
-            key={resource}
-            onClick={() => handleAddResource(card.id, getResourceTypeNumber(resource))}
-            disabled={game.currentPlayer.resources[resource] < 1 || (card.investedResources[resource] || 0) >= cost}
-            style={{backgroundColor: getResourceColor(getResourceTypeNumber(resource))}}
-          >
-            Add {resource}
-          </button>
-        ))}
-      </div>
-    );
-  };
-
-  const renderInvestedResources = (card: Card) => {
-    return (
-      <div className="invested-resources">
-        <h5>Construction Progress:</h5>
-        {Object.entries(card.constructionCost).map(([resource, cost]) => {
-          const invested = card.investedResources[resource] || 0;
-          const percentage = Math.min((invested / cost) * 100, 100);
-          return (
-            <div key={resource} className="resource-progress">
-              <span style={{color: getResourceColor(getResourceTypeNumber(resource))}}>{resource}: </span>
-              <div className="progress-bar">
-                <div className="progress" style={{ width: `${percentage}%`, backgroundColor: getResourceColor(getResourceTypeNumber(resource)) }}></div>
-              </div>
-              <span>{invested}/{cost}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderRecyclingBonus = (card: Card) => {
-    return (
-      <div className="recycling-bonus">
-        <h5>Recycling Bonus:</h5>
-        <p style={{color: getResourceColor(card.recyclingBonus)}}>{getResourceTypeString(card.recyclingBonus)}</p>
-      </div>
-    );
-  };
-
-  const renderConstructionRequirements = (card: Card) => {
-    return (
-      <div className="construction-requirements">
-        <h5>Construction Requirements:</h5>
-        {Object.entries(card.constructionCost).map(([resource, cost]) => (
-          <p key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>
-            {resource}: {cost}
-          </p>
-        ))}
-      </div>
-    );
-  };
-
-  const renderProduction = (card: Card) => {
-    return (
-      <div className="production">
-        <h5>Production:</h5>
-        {Object.entries(card.production).map(([resource, amount]) => (
-          <p key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>
-            {resource}: {amount}
-          </p>
-        ))}
-      </div>
-    );
-  };
-
-  const renderEmpire = (player: PlayerStatus) => {
-    return (
-      <div className="empire">
-        <h3>{player.name}'s Empire (Constructed Buildings)</h3>
-        {player.empire.map((card) => (
-          <div key={card.id} className="empire-card">
-            <h4>{card.name}</h4>
-            <p>Victory Points: {card.victoryPoints}</p>
-            {renderProduction(card)}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderConstructionArea = (player: PlayerStatus) => {
-    return (
-      <div className="construction-area">
-        <h3>{player.name}'s Construction Area</h3>
-        {player.constructionArea.map((card) => (
-          <div key={card.id} className="card">
-            <h4>{card.name}</h4>
-            <p>Type: {getCardTypeString(card.type)}</p>
-            <p>Victory Points: {card.victoryPoints}</p>
-            {renderConstructionRequirements(card)}
-            {renderProduction(card)}
-            {renderRecyclingBonus(card)}
-            {renderInvestedResources(card)}
-            {player.id === game?.currentPlayer.id && renderResourceButtons(card)}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderDraftingArea = (player: PlayerStatus) => {
-    return (
-      <div className="drafting-area">
-        <h3>{player.name}'s Drafting Area</h3>
-        {player.draftingArea.map((card) => (
-          <div key={card.id} className="card">
-            <h4>{card.name}</h4>
-            <p>Type: {getCardTypeString(card.type)}</p>
-            <p>Victory Points: {card.victoryPoints}</p>
-            {renderConstructionRequirements(card)}
-            {renderProduction(card)}
-            {renderRecyclingBonus(card)}
-            {player.id === game?.currentPlayer.id && (
-              <div className="card-actions">
-                <button onClick={() => handleMoveToConstruction(card.id)}>Move to Construction</button>
-                <button onClick={() => handleDiscard(card.id)}>Discard</button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const EndGameScreen: React.FC<{ game: GameStatus }> = ({ game }) => {
-    const allPlayers = [game.currentPlayer, ...game.otherPlayers];
-    const sortedPlayers = allPlayers.sort((a, b) => {
-      const scoreA = game.finalScores?.[a.id] || 0;
-      const scoreB = game.finalScores?.[b.id] || 0;
-      return scoreB - scoreA;
-    });
-    const winner = sortedPlayers.find(player => player.id === game.winnerId);
-
-    return (
-      <div className="end-game-screen">
-        <h2>Game Over</h2>
-        {winner && <h3>Winner: {winner.name}</h3>}
-        <h4>Final Scores:</h4>
-        <ul>
-          {sortedPlayers.map((player, index) => (
-            <li key={player.id}>
-              {index + 1}. {player.name}: {game.finalScores?.[player.id] || 0} points
-              {player.id === game.winnerId && " (Winner)"}
-            </li>
-          ))}
-        </ul>
-        <h4>Empire Summary:</h4>
-        {sortedPlayers.map(player => (
-          <div key={player.id} className="player-summary">
-            <h5>{player.name}</h5>
-            <p>Cards in Empire: {player.empire.length}</p>
-            <p>Resources:</p>
-            <ul>
-              {Object.entries(player.resources).map(([resource, amount]) => (
-                <li key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>{resource}: {amount}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
-        <button onClick={() => navigate('/')}>Return to Lobby</button>
-      </div>
-    );
-  };
-
   if (!game) {
     return <div>Loading...</div>;
   }
 
   if (game.gameState === 0) {
-    // Lobby state
-    const isHost = game.host.id === game.currentPlayer.id;
-    const playerCount = game.otherPlayers.length + 1;
-    const canStartGame = isHost && playerCount >= 2;
-
-    return (
-      <div className="game-lobby">
-        <h2>Game Lobby</h2>
-        {error && <p className="error-message">{error}</p>}
-        <p>Players: {playerCount} / {game.host.resources?.maxPlayers || 5}</p>
-        <h3>Players in Lobby:</h3>
-        <ul>
-          <li>{game.currentPlayer.name} {isHost ? "(Host)" : ""}</li>
-          {game.otherPlayers.map(player => (
-            <li key={player.id}>{player.name}</li>
-          ))}
-        </ul>
-        {isHost ? (
-          <button onClick={handleStartGame} disabled={!canStartGame}>
-            Start Game
-          </button>
-        ) : (
-          <p>Waiting for the host to start the game...</p>
-        )}
-        {!canStartGame && isHost && (
-          <p>At least 2 players are required to start the game.</p>
-        )}
-      </div>
-    );
+    return <GameLobby game={game} error={error} handleStartGame={handleStartGame} />;
   }
 
   if (game.gameState === 2) {
-    // Game finished state
-    return <EndGameScreen game={game} />;
+    return <EndGameScreen game={game} navigate={navigate} />;
   }
 
   // In-game state
@@ -409,18 +158,9 @@ const GameBoard: React.FC = () => {
         <p>Phase: {game.currentPhase}</p>
         <p>State: {game.gameState}</p>
       </div>
-      <div className="player-info">
-        <h3>Your Information</h3>
-        <p>Name: {game.currentPlayer.name}</p>
-        <p>Resources:</p>
-        <ul>
-          {Object.entries(game.currentPlayer.resources).map(([resource, amount]) => (
-            <li key={resource} style={{color: getResourceColor(getResourceTypeNumber(resource))}}>{resource}: {amount}</li>
-          ))}
-        </ul>
-      </div>
       
-      {renderEmpire(game.currentPlayer)}
+      <PlayerInfo player={game.currentPlayer} />
+      <Empire player={game.currentPlayer} />
       
       {game.gameState === 1 && game.currentPhase === 0 && (
         <div className="player-hand">
@@ -432,12 +172,7 @@ const GameBoard: React.FC = () => {
                 className={`card ${game.currentPlayer.hasDraftedThisRound ? 'disabled' : ''}`} 
                 onClick={() => !game.currentPlayer.hasDraftedThisRound && handleDraft(card.id)}
               >
-                <h4>{card.name}</h4>
-                <p>Type: {getCardTypeString(card.type)}</p>
-                <p>Victory Points: {card.victoryPoints}</p>
-                {renderConstructionRequirements(card)}
-                {renderProduction(card)}
-                {renderRecyclingBonus(card)}
+                <CardDetails card={card} />
               </div>
             ))}
           </div>
@@ -447,9 +182,18 @@ const GameBoard: React.FC = () => {
       
       {game.gameState === 1 && game.currentPhase === 1 && (
         <div className="player-actions">
-          {renderDraftingArea(game.currentPlayer)}
+          <DraftingArea 
+            player={game.currentPlayer} 
+            currentPlayerId={game.currentPlayer.id}
+            handleMoveToConstruction={handleMoveToConstruction}
+            handleDiscard={handleDiscard}
+          />
           
-          {renderConstructionArea(game.currentPlayer)}
+          <ConstructionArea 
+            player={game.currentPlayer}
+            currentPlayerId={game.currentPlayer.id}
+            handleAddResource={handleAddResource}
+          />
           
           <button onClick={handleReady} disabled={game.currentPlayer.isReady || game.currentPlayer.draftingArea.length > 0}>
             {game.currentPlayer.isReady ? "Ready" : "Set Ready"}
@@ -464,13 +208,19 @@ const GameBoard: React.FC = () => {
         <h3>Other Players</h3>
         {game.otherPlayers.map((player) => (
           <div key={player.id} className="player">
-            <h4>{player.name}</h4>
-            <p>Hand Count: {player.handCount}</p>
-            <p>Ready: {player.isReady ? "Yes" : "No"}</p>
-            <p>Has Drafted: {player.hasDraftedThisRound ? "Yes" : "No"}</p>
-            {renderDraftingArea(player)}
-            {renderConstructionArea(player)}
-            {renderEmpire(player)}
+            <PlayerInfo player={player} />
+            <DraftingArea 
+              player={player} 
+              currentPlayerId={game.currentPlayer.id}
+              handleMoveToConstruction={handleMoveToConstruction}
+              handleDiscard={handleDiscard}
+            />
+            <ConstructionArea 
+              player={player}
+              currentPlayerId={game.currentPlayer.id}
+              handleAddResource={handleAddResource}
+            />
+            <Empire player={player} />
           </div>
         ))}
       </div>
