@@ -73,6 +73,7 @@ namespace ItsAWonderfulWorldAPI.Services
                 GameState = game.State,
                 CurrentPhase = game.CurrentPhase,
                 CurrentRound = game.CurrentRound,
+                CurrentProductionStep = game.CurrentProductionStep,
                 Host = CreatePlayerStatus(game.Host),
                 CurrentPlayer = CreatePlayerStatus(currentPlayer),
                 OtherPlayers = otherPlayers.Select(CreatePlayerStatus).ToList()
@@ -142,6 +143,7 @@ namespace ItsAWonderfulWorldAPI.Services
         public GameState GameState { get; set; }
         public GamePhase CurrentPhase { get; set; }
         public int CurrentRound { get; set; }
+        public ResourceType? CurrentProductionStep { get; set; }
         public PlayerStatus Host { get; set; }
         public PlayerStatus CurrentPlayer { get; set; }
         public List<PlayerStatus> OtherPlayers { get; set; }

@@ -1,3 +1,12 @@
+export enum ResourceType {
+  Materials,
+  Energy,
+  Science,
+  Gold,
+  Exploration,
+  Krystallium
+}
+
 export interface Card {
   id: string;
   name: string;
@@ -29,6 +38,7 @@ export interface GameStatus {
   gameState: number;
   currentPhase: number;
   currentRound: number;
+  currentProductionStep: ResourceType | null;
   host: PlayerStatus;
   currentPlayer: PlayerStatus;
   otherPlayers: PlayerStatus[];

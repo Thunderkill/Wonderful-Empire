@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-import { GameStatus } from '../types';
+import { GameStatus, ResourceType } from '../types';
 import GameLobby from './GameLobby';
 import EndGameScreen from './EndGameScreen';
 import PlayerInfo from './PlayerInfo';
@@ -9,6 +9,7 @@ import Empire from './Empire';
 import DraftingArea from './DraftingArea';
 import ConstructionArea from './ConstructionArea';
 import CardDetails from './CardDetails';
+import './GameBoard.css';
 
 const GameBoard: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -18,7 +19,7 @@ const GameBoard: React.FC = () => {
 
   useEffect(() => {
     fetchGameStatus();
-    const intervalId = setInterval(fetchGameStatus, 500); // Poll every 5 seconds
+    const intervalId = setInterval(fetchGameStatus, 500); // Poll every 0.5 seconds
     return () => clearInterval(intervalId);
   }, [gameId]);
 
@@ -71,7 +72,7 @@ const GameBoard: React.FC = () => {
     }
   };
 
-  const handleAddResource = async (cardId: string, resourceType: number) => {
+  const handleAddResource = async (cardId: string, resourceType: ResourceType) => {
     try {
       const response = await api.post(`/api/Game/${gameId}/addresource`, {
         playerId: game?.currentPlayer.id,
@@ -136,6 +137,30 @@ const GameBoard: React.FC = () => {
     }
   };
 
+  const renderProductionPhase = () => {
+    if (!game || game.currentPhase !== 2 || game.currentProductionStep === null) return null;
+
+    const productionOrder = [ResourceType.Materials, ResourceType.Energy, ResourceType.Science, ResourceType.Gold, ResourceType.Exploration];
+    const currentStep = game.currentProductionStep;
+
+    return (
+      <div className="production-phase">
+        <h3>Production Phase</h3>
+        <p>Current step: {ResourceType[currentStep]}</p>
+        <div className="production-steps">
+          {productionOrder.map((step) => (
+            <div key={step} className={`production-step ${step === currentStep ? 'active' : ''} ${step < currentStep ? 'completed' : ''}`}>
+              {ResourceType[step]}
+            </div>
+          ))}
+        </div>
+        <button onClick={handleReady} disabled={game.currentPlayer.isReady}>
+          {game.currentPlayer.isReady ? "Ready for Next Step" : "Set Ready"}
+        </button>
+      </div>
+    );
+  };
+
   if (!game) {
     return <div>Loading...</div>;
   }
@@ -155,8 +180,8 @@ const GameBoard: React.FC = () => {
       {error && <p className="error-message">{error}</p>}
       <div className="game-info">
         <p>Round: {game.currentRound}</p>
-        <p>Phase: {game.currentPhase}</p>
-        <p>State: {game.gameState}</p>
+        <p>Phase: {game.currentPhase === 0 ? 'Draft' : game.currentPhase === 1 ? 'Planning' : 'Production'}</p>
+        <p>State: {game.gameState === 1 ? 'In Progress' : 'Unknown'}</p>
       </div>
       
       <PlayerInfo player={game.currentPlayer} />
@@ -180,14 +205,16 @@ const GameBoard: React.FC = () => {
         </div>
       )}
       
-      {game.gameState === 1 && game.currentPhase === 1 && (
+      {game.gameState === 1 && (game.currentPhase === 1 || game.currentPhase === 2) && (
         <div className="player-actions">
-          <DraftingArea 
-            player={game.currentPlayer} 
-            currentPlayerId={game.currentPlayer.id}
-            handleMoveToConstruction={handleMoveToConstruction}
-            handleDiscard={handleDiscard}
-          />
+          {game.currentPhase === 1 && (
+            <DraftingArea 
+              player={game.currentPlayer} 
+              currentPlayerId={game.currentPlayer.id}
+              handleMoveToConstruction={handleMoveToConstruction}
+              handleDiscard={handleDiscard}
+            />
+          )}
           
           <ConstructionArea 
             player={game.currentPlayer}
@@ -195,14 +222,20 @@ const GameBoard: React.FC = () => {
             handleAddResource={handleAddResource}
           />
           
-          <button onClick={handleReady} disabled={game.currentPlayer.isReady || game.currentPlayer.draftingArea.length > 0}>
-            {game.currentPlayer.isReady ? "Ready" : "Set Ready"}
-          </button>
-          {game.currentPlayer.draftingArea.length > 0 && (
-            <p>You must move all cards from your drafting area before setting ready.</p>
+          {game.currentPhase === 1 && (
+            <>
+              <button onClick={handleReady} disabled={game.currentPlayer.isReady || game.currentPlayer.draftingArea.length > 0}>
+                {game.currentPlayer.isReady ? "Ready" : "Set Ready"}
+              </button>
+              {game.currentPlayer.draftingArea.length > 0 && (
+                <p>You must move all cards from your drafting area before setting ready.</p>
+              )}
+            </>
           )}
         </div>
       )}
+
+      {game.gameState === 1 && game.currentPhase === 2 && renderProductionPhase()}
       
       <div className="other-players">
         <h3>Other Players</h3>

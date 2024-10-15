@@ -1,0 +1,98 @@
+.game-board {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.error-message {
+  color: red;
+  font-weight: bold;
+}
+
+.game-info {
+  background-color: #f0f0f0;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+}
+
+.production-phase {
+  background-color: #e6f7ff;
+  padding: 15px;
+  margin-top: 20px;
+  border-radius: 5px;
+}
+
+.production-steps {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  margin-bottom: 15px;
+}
+
+.production-step {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  background-color: #d9d9d9;
+  margin: 0 5px;
+  border-radius: 5px;
+}
+
+.production-step.active {
+  background-color: #1890ff;
+  color: white;
+  font-weight: bold;
+}
+
+.production-step.completed {
+  background-color: #52c41a;
+  color: white;
+}
+
+.player-hand, .player-actions {
+  margin-top: 20px;
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.other-players {
+  margin-top: 30px;
+}
+
+.player {
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+button {
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background-color: #d9d9d9;
+  cursor: not-allowed;
+}
