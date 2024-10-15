@@ -33,13 +33,18 @@ export interface PlayerStatus {
   discardedResourcePool: number;
 }
 
+export interface HostInfo {
+  id: string;
+  name: string;
+}
+
 export interface GameStatus {
   gameId: string;
   gameState: number;
   currentPhase: number;
   currentRound: number;
   currentProductionStep: ResourceType | null;
-  host: PlayerStatus;
+  host: HostInfo;
   currentPlayer: PlayerStatus;
   otherPlayers: PlayerStatus[];
   winnerId?: string;

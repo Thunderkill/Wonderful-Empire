@@ -74,7 +74,7 @@ namespace ItsAWonderfulWorldAPI.Services
                 CurrentPhase = game.CurrentPhase,
                 CurrentRound = game.CurrentRound,
                 CurrentProductionStep = game.CurrentProductionStep,
-                Host = CreatePlayerStatus(game.Host),
+                Host = new HostInfo { Id = game.Host.Id, Name = game.Host.Name },
                 CurrentPlayer = CreatePlayerStatus(currentPlayer),
                 OtherPlayers = otherPlayers.Select(CreatePlayerStatus).ToList()
             };
@@ -144,11 +144,17 @@ namespace ItsAWonderfulWorldAPI.Services
         public GamePhase CurrentPhase { get; set; }
         public int CurrentRound { get; set; }
         public ResourceType? CurrentProductionStep { get; set; }
-        public PlayerStatus Host { get; set; }
+        public HostInfo Host { get; set; }
         public PlayerStatus CurrentPlayer { get; set; }
         public List<PlayerStatus> OtherPlayers { get; set; }
         public Dictionary<Guid, int> FinalScores { get; set; }
         public Guid? WinnerId { get; set; }
+    }
+
+    public class HostInfo
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
     }
 
     public class PlayerStatus
