@@ -4,9 +4,10 @@ import { getResourceColor, getResourceTypeNumber } from '../utils';
 
 interface EmpireProps {
   player: PlayerStatus;
+  currentPlayerId: string; // Add this line to include the current player's ID
 }
 
-const Empire: React.FC<EmpireProps> = ({ player }) => {
+const Empire: React.FC<EmpireProps> = ({ player, currentPlayerId }) => {
   const renderProduction = (card: Card) => {
     return (
       <div className="production">
@@ -20,9 +21,11 @@ const Empire: React.FC<EmpireProps> = ({ player }) => {
     );
   };
 
+  const isCurrentPlayer = player.id === currentPlayerId;
+
   return (
     <div className="empire">
-      <h3>{player.name}'s Empire (Constructed Buildings)</h3>
+      <h3>{isCurrentPlayer ? 'Your Empire' : `${player.name}'s Empire`} (Constructed Buildings)</h3>
       {player.empire.map((card) => (
         <div key={card.id} className="empire-card">
           <h4>{card.name}</h4>

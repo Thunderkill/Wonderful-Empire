@@ -185,7 +185,7 @@ const GameBoard: React.FC = () => {
       </div>
       
       <PlayerInfo player={game.currentPlayer} />
-      <Empire player={game.currentPlayer} />
+      <Empire player={game.currentPlayer} currentPlayerId={game.currentPlayer.id} />
       
       {game.gameState === 1 && game.currentPhase === 0 && (
         <div className="player-hand">
@@ -253,7 +253,7 @@ const GameBoard: React.FC = () => {
               currentPlayerId={game.currentPlayer.id}
               handleAddResource={handleAddResource}
             />
-            <Empire player={player} />
+            <Empire player={player} currentPlayerId={game.currentPlayer.id} />
           </div>
         ))}
       </div>
