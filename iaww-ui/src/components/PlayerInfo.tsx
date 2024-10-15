@@ -4,12 +4,13 @@ import { getResourceColor, getResourceTypeNumber } from '../utils';
 
 interface PlayerInfoProps {
   player: PlayerStatus;
+  isCurrentPlayer: boolean;
 }
 
-const PlayerInfo: React.FC<PlayerInfoProps> = ({ player }) => {
+const PlayerInfo: React.FC<PlayerInfoProps> = ({ player, isCurrentPlayer }) => {
   return (
     <div className="player-info">
-      <h3>{player.name}'s Information</h3>
+      <h3>{isCurrentPlayer ? "Your Information" : `${player.name}'s Information`}</h3>
       <p>Resources:</p>
       <ul>
         {Object.entries(player.resources).map(([resource, amount]) => (

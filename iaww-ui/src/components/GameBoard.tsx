@@ -184,7 +184,7 @@ const GameBoard: React.FC = () => {
         <p>State: {game.gameState === 1 ? 'In Progress' : 'Unknown'}</p>
       </div>
       
-      <PlayerInfo player={game.currentPlayer} />
+      <PlayerInfo player={game.currentPlayer} isCurrentPlayer={true} />
       <Empire player={game.currentPlayer} currentPlayerId={game.currentPlayer.id} />
       
       {game.gameState === 1 && game.currentPhase === 0 && (
@@ -241,7 +241,7 @@ const GameBoard: React.FC = () => {
         <h3>Other Players</h3>
         {game.otherPlayers.map((player) => (
           <div key={player.id} className="player">
-            <PlayerInfo player={player} />
+            <PlayerInfo player={player} isCurrentPlayer={false} />
             <DraftingArea 
               player={player} 
               currentPlayerId={game.currentPlayer.id}
